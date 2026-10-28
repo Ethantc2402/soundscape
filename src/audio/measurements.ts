@@ -39,15 +39,19 @@ export function rms(input: PcmAudio): number[] {
 }
 
 export function measureAudio(input: PcmAudio): AudioMeasurement {
-  const peaks = samplePeak(input);
-  const energies = perChannelMeanSquareEnergy(input);
+  validatePcm(input);
   return {
     sampleRate: input.sampleRate,
     frameCount: input.channels[0].length,
-    channels: energies.map((energy, index) => ({
-      samplePeak: peaks[index]!,
-      rms: Math.sqrt(energy),
-      meanSquareEnergy: energy,
-    })),
+    channels: input.channels.map(channel => {
+      let peak = 0;
+      let sum = 0;
+      for (const sample of channel) {
+        peak = Math.max(peak, Math.abs(sample));
+        sum += sample * sample;
+      }
+      const meanSquareEnergy = sum / channel.length;
+      return { samplePeak: peak, rms: Math.sqrt(meanSquareEnergy), meanSquareEnergy };
+    }),
   };
 }

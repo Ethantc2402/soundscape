@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sineWave } from './fixtures';
 import { measureAudio, perChannelMeanSquareEnergy, rms, samplePeak } from './measurements';
 import type { PcmAudio } from './pcm';
+import { validatePcm } from './pcm';
 
 // Absolute error limits for Float32 fixtures and Number accumulation.
 const AMPLITUDE_TOLERANCE = 1e-6;
@@ -69,7 +70,35 @@ describe('PCM measurements', () => {
     expect(samples).toEqual(before);
   });
 
-  const invalidInputs: [string, unknown][] = [
+  const equivalenceInputs: [string, PcmAudio][] = [
+    ['mono sine', { sampleRate, channels: [fixture()] }],
+    ['mono silence', { sampleRate, channels: [new Float32Array(4)] }],
+    ['stereo silence', { sampleRate, channels: [new Float32Array(4), new Float32Array(4)] }],
+    ['different stereo signals', { sampleRate, channels: [fixture(0.25), fixture(0.5)] }],
+    ['signed over-range stereo', {
+      sampleRate, channels: [new Float32Array([-2, 1, 0]), new Float32Array([0.5, -3, 1])],
+    }],
+  ];
+
+  it.each(equivalenceInputs)('matches public measurements and preserves %s', (_label, input) => {
+    const before = input.channels.map(channel => channel.slice());
+    const result = measureAudio(input);
+    const peaks = samplePeak(input);
+    const rmsValues = rms(input);
+    const meanSquares = perChannelMeanSquareEnergy(input);
+    expect(result).toEqual({
+      sampleRate: input.sampleRate,
+      frameCount: input.channels[0].length,
+      channels: peaks.map((peak, index) => ({
+        samplePeak: peak,
+        rms: rmsValues[index],
+        meanSquareEnergy: meanSquares[index],
+      })),
+    });
+    expect(input.channels).toEqual(before);
+  });
+
+  const invalidRanges: [string, unknown][] = [
     ...[0, -1, NaN, Infinity, -Infinity].map(rate => [
       `sample rate ${rate}`, { sampleRate: rate, channels: [new Float32Array(1)] },
     ] as [string, unknown]),
@@ -78,16 +107,47 @@ describe('PCM measurements', () => {
     ['mismatched lengths', { sampleRate, channels: [new Float32Array(2), new Float32Array(3)] }],
     ['no channels', { sampleRate, channels: [] }],
     ['three channels', { sampleRate, channels: Array.from({ length: 3 }, () => new Float32Array(1)) }],
-    ['wrong sample storage', { sampleRate, channels: [[0]] }],
     ...[NaN, Infinity, -Infinity].map(value => [
       `nonfinite sample ${value}`, { sampleRate, channels: [new Float32Array([value])] },
     ] as [string, unknown]),
   ];
 
-  describe.each([samplePeak, rms, perChannelMeanSquareEnergy, measureAudio])('%s validation', measure => {
-    it.each(invalidInputs)('rejects %s', (_label, input) => {
+  const invalidTypes: [string, unknown, string][] = [
+    ...[undefined, null, true, 1, 'pcm', [], () => undefined].map(input => [
+      `top-level ${String(input)}`, input, 'PCM input must be an object.',
+    ] as [string, unknown, string]),
+    ...[undefined, null, '48000', true, {}].map(rate => [
+      `sample-rate type ${String(rate)}`, { sampleRate: rate, channels: [new Float32Array(1)] },
+      'Sample rate must be a number.',
+    ] as [string, unknown, string]),
+    ...[undefined, null, 1, 'channels', {}, new Float32Array(1), { 0: new Float32Array(1), length: 1 }].map(channels => [
+      `channels container ${String(channels)}`, { sampleRate, channels }, 'PCM channels must be an array.',
+    ] as [string, unknown, string]),
+    ...[undefined, null, 1, [0], new Float64Array(1), {}].map(channel => [
+      `first channel ${String(channel)}`, { sampleRate, channels: [channel] },
+      'PCM channels must be Float32Array instances.',
+    ] as [string, unknown, string]),
+    ['missing input fields', {}, 'Sample rate must be a number.'],
+    ['malformed second channel', { sampleRate, channels: [new Float32Array(1), null] },
+      'PCM channels must be Float32Array instances.'],
+    ['sparse channel array', { sampleRate, channels: new Array(1) },
+      'PCM channels must be Float32Array instances.'],
+  ];
+
+  describe.each([
+    { name: 'samplePeak', measure: samplePeak },
+    { name: 'rms', measure: rms },
+    { name: 'perChannelMeanSquareEnergy', measure: perChannelMeanSquareEnergy },
+    { name: 'measureAudio', measure: measureAudio },
+    { name: 'validatePcm', measure: validatePcm },
+  ])('$name validation', ({ measure }) => {
+    it.each(invalidRanges)('rejects %s with RangeError', (_label, input) => {
       // Deliberately model untyped callers to test the runtime boundary.
-      expect(() => measure(input as PcmAudio)).toThrow();
+      expect(() => measure(input as PcmAudio)).toThrow(RangeError);
+    });
+    it.each(invalidTypes)('rejects %s with an intentional TypeError', (_label, input, message) => {
+      expect(() => measure(input as PcmAudio)).toThrow(TypeError);
+      expect(() => measure(input as PcmAudio)).toThrow(message);
     });
   });
 });
