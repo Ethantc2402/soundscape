@@ -14,6 +14,7 @@ npm ci
 npm test
 npm run typecheck
 npm run build
+git diff --check
 npm run dev -- --host 0.0.0.0
 ```
 
@@ -121,21 +122,15 @@ Summed power equals `Σ(xw)² / Σw²`, which may differ from unwindowed mean sq
 An isolated, bin-aligned sine of amplitude A gives peak-bin power A²/3 and total
 power A²/2 under full-length Hann. Coherent gain is 1/2; mean-square gain is 3/8.
 
-Bands are Sub-bass 20–60, Bass 60–250, Low mids 250–500, Mids 500–2000, High mids
-2000–6000, Treble 6000–12000, and Air 12000–20000 Hz. Sum powers by bin centers in
-`[lower, upper)`, except Air includes 20000 Hz. Shared boundaries belong to the
-higher band. Limits are clipped to Nyquist; empty bands return zero with
-`binCount: 0`. A band starting exactly at Nyquist may contain that endpoint.
-There is no interpolation, per-band normalization, or source-frequency reassignment.
+Seven fixed bands cover 20 Hz through 20 kHz. Power is assigned by bin centers,
+with shared boundaries belonging to the higher band and limits clipped to
+Nyquist. Empty bands return zero. The spectral decision below lists exact ranges,
+endpoint rules, and limitations; no interpolation or per-band normalization occurs.
 
-Run the spectral tests alone, or all validation:
+To run only the spectral tests (full validation commands are above):
 
 ```sh
 npm test -- src/audio/spectral.test.ts
-npm test
-npm run typecheck
-npm run build
-git diff --check
 ```
 
 See [the spectral decision](docs/decisions/002-spectral-analysis.md) for derivations,

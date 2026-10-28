@@ -1,6 +1,6 @@
 import { validateSampleRate } from './pcm';
 
-export const SOUNDSCAPE_BANDS = [
+export const SOUNDSCAPE_BANDS = Object.freeze([
   { name: 'Sub-bass', lowerHz: 20, upperHz: 60 },
   { name: 'Bass', lowerHz: 60, upperHz: 250 },
   { name: 'Low mids', lowerHz: 250, upperHz: 500 },
@@ -8,7 +8,8 @@ export const SOUNDSCAPE_BANDS = [
   { name: 'High mids', lowerHz: 2000, upperHz: 6000 },
   { name: 'Treble', lowerHz: 6000, upperHz: 12000 },
   { name: 'Air', lowerHz: 12000, upperHz: 20000 },
-] as const;
+] as const);
+for (const band of SOUNDSCAPE_BANDS) Object.freeze(band);
 
 export interface BandPower {
   readonly name: typeof SOUNDSCAPE_BANDS[number]['name'];
@@ -33,14 +34,16 @@ export function aggregateBandPower(
   if (spacing === 0) throw new RangeError('Frequency spacing must be representable.');
   const sums = SOUNDSCAPE_BANDS.map(() => 0);
   const counts = SOUNDSCAPE_BANDS.map(() => 0);
+  let index = 0;
   for (let k = 0; k < power.length; k++) {
     const value = power[k]!;
     if (!Number.isFinite(value) || value < 0) throw new RangeError('Bin power must be finite and nonnegative.');
     const frequency = k * spacing;
-    const index = SOUNDSCAPE_BANDS.findIndex((band, i) =>
-      frequency >= band.lowerHz && (frequency < band.upperHz ||
-        (i === SOUNDSCAPE_BANDS.length - 1 && frequency === band.upperHz)));
-    if (index !== -1) {
+    // Frequencies ascend, so advance through the fixed bands only once.
+    while (index < SOUNDSCAPE_BANDS.length - 1 && frequency >= SOUNDSCAPE_BANDS[index]!.upperHz) index++;
+    const band = SOUNDSCAPE_BANDS[index]!;
+    if (frequency >= band.lowerHz && (frequency < band.upperHz ||
+      (index === SOUNDSCAPE_BANDS.length - 1 && frequency === band.upperHz))) {
       sums[index] = sums[index]! + value;
       if (!Number.isFinite(sums[index])) throw new RangeError('Aggregated band power overflowed.');
       counts[index] = counts[index]! + 1;

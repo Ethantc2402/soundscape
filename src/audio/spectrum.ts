@@ -6,7 +6,7 @@ import { aggregateBandPower } from './bands';
 import type { BandPower } from './bands';
 
 /** Bounded power-of-two sizes; 32768/65536 allow longer low-frequency observations. */
-export const SUPPORTED_FFT_SIZES = [1024, 2048, 4096, 8192, 16384, 32768, 65536] as const;
+export const SUPPORTED_FFT_SIZES = Object.freeze([1024, 2048, 4096, 8192, 16384, 32768, 65536] as const);
 
 export interface SpectrumOptions {
   readonly frameOffset: number;

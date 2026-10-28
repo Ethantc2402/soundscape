@@ -118,6 +118,8 @@ acoustic power, loudness, or dB.
 
 Seven fixed bands: Sub-bass 20–60, Bass 60–250, Low mids 250–500, Mids 500–2000,
 High mids 2000–6000, Treble 6000–12000, and Air 12000–20000 Hz.
+Exported band definitions and supported FFT sizes are frozen at runtime as well
+as readonly in TypeScript. Calls cannot alter subsequent analyses through them.
 
 Each **bin center** belongs to `[lower, upper)`, except Air includes exactly
 20000 Hz. Thus a shared boundary belongs only to the higher band. No fractional
@@ -136,6 +138,8 @@ Treble excludes it. This prevents double-counting at clipped boundaries.
 Finite-window leakage can cross band boundaries. A 60 Hz tone lies exactly on
 the Sub-bass/Bass boundary, so some measured power legitimately falls below 60 Hz.
 The engine does not reassign that leaked power to the nominal source frequency.
+Aggregation advances through the sorted bands as bin frequencies increase,
+preserving the same assignment without searching all bands anew for every bin.
 
 ## Numerical tests and observed fixtures
 

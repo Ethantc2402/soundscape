@@ -60,6 +60,12 @@ function referenceTotal(samples: ArrayLike<number>): number {
 }
 
 describe('periodic Hann', () => {
+  it.each([4, 5, 997])('supports a short or irregular observation of length %s', length => {
+    const samples = Float32Array.from({ length }, (_, n) => 0.3 + Math.sin(n));
+    const channel = analyzeSpectrum(mono(samples), { frameOffset: 0, fftSize: 1024, frameLength: length }).channels[0]!;
+    close(channel.totalPower, referenceTotal(samples));
+    for (const k of [0, 1, 100, 512]) close(channel.power[k]!, referenceBin(samples, 1024, k));
+  });
   it('uses N rather than N-1, with circular rather than endpoint symmetry', () => {
     const { coefficients: w, coherentGain, meanSquareGain } = periodicHann(4);
     [0, 0.5, 1, 0.5].forEach((value, n) => close(w[n]!, value, WINDOW_TOLERANCE));
@@ -86,6 +92,25 @@ describe('periodic Hann', () => {
 });
 
 describe('one-sided spectral power', () => {
+  it('keeps both active stereo channels and successive result buffers independent', () => {
+    const left = tone(187.5, fftSize, sampleRate, 0.5);
+    const right = tone(1500, fftSize, sampleRate, 0.25);
+    const input: PcmAudio = { sampleRate, channels: [left, right] };
+    const before = input.channels.map(channel => channel.slice());
+    const first = analyzeSpectrum(input, options);
+    expect(peakBin(first.channels[0]!.power)).toBe(16);
+    expect(peakBin(first.channels[1]!.power)).toBe(128);
+    close(first.channels[0]!.totalPower, 0.125, FIXTURE_POWER_TOLERANCE);
+    close(first.channels[1]!.totalPower, 0.03125, FIXTURE_POWER_TOLERANCE);
+    const next = analyzeSpectrum(input, options);
+    first.channels[0]!.power.fill(99);
+    first.frequencyHz.fill(99);
+    expect(next.channels[0]!.power[16]).not.toBe(99);
+    expect(next.frequencyHz[16]).toBe(187.5);
+    expect(peakBin(first.channels[1]!.power)).toBe(128);
+    expect(input.channels).toEqual(before);
+    expect(analyzeSpectrum(input, options)).toEqual(next);
+  });
   it('measures mono and stereo silence exactly', () => {
     for (const channels of [[new Float32Array(fftSize)], [new Float32Array(fftSize), new Float32Array(fftSize)]] as const) {
       const result = analyzeSpectrum({ sampleRate, channels }, options);
@@ -232,6 +257,31 @@ describe('one-sided spectral power', () => {
 });
 
 describe('frequency bands', () => {
+  it('keeps published analysis settings fixed for untyped callers', () => {
+    expect(Reflect.set(SUPPORTED_FFT_SIZES, '0', 3)).toBe(false);
+    expect(Reflect.set(SOUNDSCAPE_BANDS[0], 'lowerHz', 0)).toBe(false);
+    expect(Reflect.set(SOUNDSCAPE_BANDS, '0', { name: 'changed', lowerHz: 0, upperHz: 1 })).toBe(false);
+    expect(() => analyzeSpectrum(mono(new Float32Array(1024)), { frameOffset: 0, fftSize: 1024 })).not.toThrow();
+  });
+
+  it.each([1000, 24000, 40960, 48000, 192000])('matches an independent band sum at sample rate %s', rate => {
+    const size = 1024;
+    const power = Float64Array.from({ length: size / 2 + 1 }, (_, k) => (k % 11) / 16);
+    const actual = aggregateBandPower(power, rate, size);
+    for (const [index, band] of SOUNDSCAPE_BANDS.entries()) {
+      let expected = 0;
+      let count = 0;
+      for (let k = 0; k < power.length; k++) {
+        const frequency = k * rate / size;
+        if (frequency >= band.lowerHz && (frequency < band.upperHz || (index === 6 && frequency === 20000))) {
+          expected += power[k]!;
+          count++;
+        }
+      }
+      expect(actual[index]!.power).toBe(expected);
+      expect(actual[index]!.binCount).toBe(count);
+    }
+  });
   it('assigns shared boundaries to the higher band; includes 20 kHz and excludes DC/outside bins', () => {
     const size = 4096;
     const rate = 40960; // 10 Hz bin spacing aligns every nominal boundary.
