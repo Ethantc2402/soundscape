@@ -1,8 +1,9 @@
-# Soundscape 3D — Task 001 foundation
+# Soundscape 3D — Audio measurement foundation
 
-Minimal Vite + React + strict TypeScript application with pure PCM measurements.
-The React page displays measurements computed from a synthetic sine wave. No FFT,
-graphics, AI, network services, uploads, or audio playback are implemented.
+Minimal Vite + React + strict TypeScript application with pure time-domain and
+single-frame FFT measurements. The React page remains a time-domain synthetic
+sine demonstration; spectral analysis is available as a tested TypeScript API.
+No graphics, AI, network services, uploads, or audio playback are implemented.
 
 ## Development
 
@@ -29,6 +30,10 @@ the default home-directory npm cache is not writable.
 - `src/audio/measurements.ts`: pure measurements; the combined API validates once
   and computes peak and mean square together in one measurement pass per channel.
 - `src/audio/audio.test.ts`: numerical fixtures and invalid-input tests.
+- `src/audio/windowing.ts`: periodic Hann coefficients and gain factors.
+- `src/audio/spectrum.ts`: selected-frame one-sided FFT power, independent per channel.
+- `src/audio/bands.ts`: deterministic bin-center power aggregation into seven bands.
+- `src/audio/spectral.test.ts`: spectral mathematics, validation, and boundary tests.
 - `src/main.tsx`: constructs a mono fixture, measures it, and renders the result.
 
 `PcmAudio` carries a finite positive sample rate in samples/second (Hz) and a
@@ -85,10 +90,66 @@ and invalid PCM/fixture options. Malformed PCM cases check intentional error
 classes and messages; combined measurements are compared with the standalone
 functions for mono, stereo, silence, and signed over-range data.
 
-See [the measurement decision](docs/decisions/001-audio-measurement.md) for
-representation choices and deferred decisions, and [AGENTS.md](AGENTS.md) for
-contributor scope and correctness requirements.
+## Single-frame spectral analysis (Task 002)
 
-Current limitation: measurements require the entire buffer in memory. Streaming
-with explicit reset and channel continuity rules remains deferred; this cleanup
-does not implement it or FFT analysis.
+```ts
+import { sineWave } from './src/audio/fixtures';
+import { analyzeSpectrum } from './src/audio/spectrum';
+
+const result = analyzeSpectrum({
+  sampleRate: 48000,
+  channels: [sineWave({ sampleRate: 48000, frameCount: 32768, frequencyHz: 60 })],
+}, { frameOffset: 0, fftSize: 32768 });
+// result.frequencyHz[k]: bin center; result.channels[0].power[k]: bin power.
+// Stereo input returns channels[0] = left, channels[1] = right.
+```
+
+Supported FFT sizes: 1024, 2048, 4096, 8192, 16384, 32768, 65536. An explicit
+`frameLength` from 4 through `fftSize` selects a shorter observation to zero-pad;
+otherwise it defaults to `fftSize`. The selected frame must fit in PCM. Padding
+is never inferred from short input. Frame offsets count samples per channel.
+
+The selected frame receives a **periodic Hann** window, then padding, then an
+unscaled `fft.js@4.0.4` transform (MIT; no runtime dependencies). Bin spacing is
+`sampleRate / fftSize`, and output includes DC through Nyquist. Reported duration
+excludes padding. Padding creates a denser frequency grid, not better intrinsic
+resolution. Neither source PCM nor time-domain APIs are changed.
+
+One-sided power is `d[k] |X[k]|² / (fftSize × Σw²)`, with d=1 at DC/Nyquist,
+otherwise 2. Units are squared linear amplitude, **not PSD, dB, or amplitude**.
+Summed power equals `Σ(xw)² / Σw²`, which may differ from unwindowed mean square.
+An isolated, bin-aligned sine of amplitude A gives peak-bin power A²/3 and total
+power A²/2 under full-length Hann. Coherent gain is 1/2; mean-square gain is 3/8.
+
+Bands are Sub-bass 20–60, Bass 60–250, Low mids 250–500, Mids 500–2000, High mids
+2000–6000, Treble 6000–12000, and Air 12000–20000 Hz. Sum powers by bin centers in
+`[lower, upper)`, except Air includes 20000 Hz. Shared boundaries belong to the
+higher band. Limits are clipped to Nyquist; empty bands return zero with
+`binCount: 0`. A band starting exactly at Nyquist may contain that endpoint.
+There is no interpolation, per-band normalization, or source-frequency reassignment.
+
+Run the spectral tests alone, or all validation:
+
+```sh
+npm test -- src/audio/spectral.test.ts
+npm test
+npm run typecheck
+npm run build
+git diff --check
+```
+
+See [the spectral decision](docs/decisions/002-spectral-analysis.md) for derivations,
+executed fixture results, dependency evaluation, and numerical tolerances. Exactly
+1 kHz at 48 kHz cannot be bin-aligned with a power-of-two FFT; tests explicitly
+handle leakage and also verify exact 1 kHz alignment at 51.2 kHz. A 60 Hz signal
+uses a longer window and can legitimately spread power across Sub-bass and Bass.
+
+See [the time-domain decision](docs/decisions/001-audio-measurement.md) for PCM
+choices, [AGENTS.md](AGENTS.md) for contributor requirements, and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the added FFT license notice.
+
+Current limitations: full buffers reside in memory and spectral analysis handles
+one selected frame per call. The engine does not identify instruments, separate
+sources, decode files, or visualize spectra. Successive-window scheduling and
+time-indexed features require a separately scoped Task 003; no streaming, workers,
+or STFT pipeline are implemented.
