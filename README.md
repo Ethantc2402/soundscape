@@ -32,7 +32,7 @@ the default home-directory npm cache is not writable.
   and computes peak and mean square together in one measurement pass per channel.
 - `src/audio/audio.test.ts`: numerical fixtures and invalid-input tests.
 - `src/audio/windowing.ts`: periodic Hann coefficients and gain factors.
-- `src/audio/spectrum.ts`: selected-frame one-sided FFT power, independent per channel.
+- `src/audio/spectrum.ts`: selected-frame one-sided FFT power and reusable validated sessions, independent per channel.
 - `src/audio/bands.ts`: deterministic bin-center power aggregation into seven bands.
 - `src/audio/spectral.test.ts`: spectral mathematics, validation, and boundary tests.
 - `src/main.tsx`: constructs a mono fixture, measures it, and renders the result.
@@ -142,6 +142,42 @@ uses a longer window and can legitimately spread power across Sub-bass and Bass.
 See [the time-domain decision](docs/decisions/001-audio-measurement.md) for PCM
 choices, [AGENTS.md](AGENTS.md) for contributor requirements, and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the added FFT license notice.
+
+## Repeated spectral analysis (Task 002.5)
+
+```ts
+import { createSpectrumAnalyzer } from './src/audio/spectrum';
+
+const analyzer = createSpectrumAnalyzer(pcm, { fftSize: 4096, frameLength: 4096 });
+const first = analyzer.analyzeFrame(0);
+const second = analyzer.analyzeFrame(2048); // Only if the full frame fits in PCM.
+```
+
+The factory validates the entire recording once and retains private FFT/Hann
+workspaces for fixed settings. Do not mutate or transfer PCM buffers during a
+session. Each call validates its offset/bounds and selected samples; returned
+arrays and metadata belong to the caller and cannot corrupt later results.
+`analyzeSpectrum` retains full-recording validation on every call.
+
+```sh
+npm run test:browser
+npm run benchmark:spectrum
+```
+
+The browser check requires a locally installed Chromium (`CHROMIUM` can select
+its executable), Node >=22.12, and no backend or audio permissions. It loads the
+real engine through Vite in a separate development-only entry and checks both
+APIs. This cloud container has a misconfigured Chromium sandbox helper; use
+`CHROMIUM_NO_SANDBOX=1 npm run test:browser` here. The override is explicit and
+should only be used in an isolated container where the browser sandbox is
+unavailable. Neither command runs in the normal test suite or modifies the UI.
+
+The benchmark defaults to three-minute, 48 kHz stereo PCM, FFT sizes 4096/8192,
+and hop 2048. It times 24 public calls and reusable calls at the same offsets,
+then reusable processing of every frame, with three trials. For a smaller run:
+`BENCH_SECONDS=10 BENCH_PUBLIC_FRAMES=4 npm run benchmark:spectrum`.
+See [the hardening decision](docs/decisions/003-spectral-engine-hardening.md)
+for measured results, browser evidence, ownership rules, and Task 003 guidance.
 
 Current limitations: full buffers reside in memory and spectral analysis handles
 one selected frame per call. The engine does not identify instruments, separate

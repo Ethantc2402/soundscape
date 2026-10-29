@@ -43,12 +43,40 @@ export interface SpectrumResult {
   readonly channels: readonly ChannelSpectrum[];
 }
 
+/** Settings are fixed for a session; only the selected offset changes. */
+export type SpectrumSettings = Omit<SpectrumOptions, 'frameOffset'>;
+
+export interface SpectrumAnalyzer {
+  analyzeFrame(frameOffset: number): SpectrumResult;
+}
+
 /**
- * Analyze a single selected frame. No sample mutation, mixing, DC removal, or playback.
+ * Safe recording boundary: validate all samples once, then retain private FFT state.
+ * Do not mutate or transfer PCM storage during the session (including from another
+ * thread). The channel list and sample rate are captured, not read from mutable metadata.
+ * This is synchronous sequential processing, not a scheduler or a shared/global cache.
+ */
+export function createSpectrumAnalyzer(input: PcmAudio, settings: SpectrumSettings): SpectrumAnalyzer {
+  validatePcm(input);
+  if (typeof settings !== 'object' || settings === null || Array.isArray(settings)) {
+    throw new TypeError('Spectrum options must be an object.');
+  }
+  const resolved = resolveOptions({ fftSize: settings.fftSize, frameOffset: 0,
+    ...(settings.frameLength === undefined ? {} : { frameLength: settings.frameLength }) });
+  return createValidatedAnalyzer(input, resolved);
+}
+
+/**
+ * Analyze a single selected frame with full PCM validation on every call.
  * P[k] = d[k] |FFT(x*w)[k]|² / (fftSize * sum(w²)); d is 1 at DC/Nyquist, otherwise 2.
  */
 export function analyzeSpectrum(input: PcmAudio, options: SpectrumOptions): SpectrumResult {
   validatePcm(input);
+  const resolved = resolveOptions(options);
+  return createValidatedAnalyzer(input, resolved).analyzeFrame(resolved.frameOffset);
+}
+
+function resolveOptions(options: SpectrumOptions): Required<SpectrumOptions> {
   if (typeof options !== 'object' || options === null || Array.isArray(options)) {
     throw new TypeError('Spectrum options must be an object.');
   }
@@ -67,46 +95,73 @@ export function analyzeSpectrum(input: PcmAudio, options: SpectrumOptions): Spec
   if (!Number.isSafeInteger(frameLength) || frameLength < 4 || frameLength > fftSize) {
     throw new RangeError('Frame length must be an integer from 4 through FFT size.');
   }
-  if (frameOffset > input.channels[0].length - frameLength) {
-    throw new RangeError('Selected frame exceeds PCM bounds; padding must be explicit via frameLength.');
+  return { fftSize, frameOffset, frameLength };
+}
+
+function validateFrameOffset(frameOffset: number, frameLength: number, channels: readonly Float32Array[]): void {
+  if (typeof frameOffset !== 'number') throw new TypeError('Frame offset must be a number.');
+  if (!Number.isSafeInteger(frameOffset) || frameOffset < 0) {
+    throw new RangeError('Frame offset must be a nonnegative safe integer.');
   }
-  const frequencyBinSpacingHz = input.sampleRate / fftSize;
-  const frameDurationSeconds = frameLength / input.sampleRate;
+  // Check each current buffer length too: a caller may have detached its storage.
+  for (const channel of channels) {
+    if (frameOffset > channel.length - frameLength) {
+      throw new RangeError('Selected frame exceeds PCM bounds; padding must be explicit via frameLength.');
+    }
+  }
+}
+
+/** Private: callers can only reach this path after full boundary validation. */
+function createValidatedAnalyzer(input: PcmAudio, settings: Required<SpectrumOptions>): SpectrumAnalyzer {
+  const { fftSize, frameLength } = settings;
+  const sampleRate = input.sampleRate;
+  const pcmChannels = [...input.channels];
+  validateFrameOffset(settings.frameOffset, frameLength, pcmChannels);
+  const frequencyBinSpacingHz = sampleRate / fftSize;
+  const frameDurationSeconds = frameLength / sampleRate;
   if (frequencyBinSpacingHz === 0 || !Number.isFinite(frameDurationSeconds)) {
     throw new RangeError('Spectral timing and frequency spacing must be representable.');
   }
-
   const window = periodicHann(frameLength);
   const fft = new FFT(fftSize);
-  // Reuse per-call workspace across channels; no global mutable plan/cache.
   const windowed = new Float64Array(fftSize);
   const coefficients = new Float64Array(2 * fftSize);
   const binCount = fftSize / 2 + 1;
   const frequencyHz = Float64Array.from({ length: binCount }, (_, k) => k * frequencyBinSpacingHz);
   const denominator = fftSize * window.sumSquaredCoefficients;
-  const channels = input.channels.map(channel => {
-    for (let n = 0; n < frameLength; n++) {
-      windowed[n] = channel[frameOffset + n]! * window.coefficients[n]!;
-    }
-    // fft.js forward transform is unscaled; only the one-sided half is needed.
-    fft.realTransform(coefficients, windowed);
-    const power = new Float64Array(binCount);
-    let totalPower = 0;
-    for (let k = 0; k < binCount; k++) {
-      const re = coefficients[2 * k]!;
-      const im = coefficients[2 * k + 1]!;
-      const weight = k === 0 || k === fftSize / 2 ? 1 : 2;
-      const value = weight * (re * re + im * im) / denominator;
-      power[k] = value;
-      totalPower += value;
-    }
-    return { power, totalPower, bands: aggregateBandPower(power, input.sampleRate, fftSize) };
-  });
-  return {
-    sampleRate: input.sampleRate, fftSize, frameOffset, frameLength, frameDurationSeconds,
-    zeroPaddingSamples: fftSize - frameLength,
-    frequencyBinSpacingHz, frequencyHz,
-    window: { type: window.type, coherentGain: window.coherentGain, meanSquareGain: window.meanSquareGain },
-    powerUnits: 'squared-linear-amplitude', normalization: 'one-sided-window-mean-square', channels,
-  };
+
+  return { analyzeFrame(frameOffset) {
+    validateFrameOffset(frameOffset, frameLength, pcmChannels);
+    const channels = pcmChannels.map(channel => {
+      for (let n = 0; n < frameLength; n++) {
+        // Offset/bounds were checked above; Hann storage has exactly frameLength entries.
+        const sample = channel[frameOffset + n]!;
+        // Cheap frame-local guard against invalid post-validation mutation. This does
+        // not rescan samples outside the frame or authorize mutation during a session.
+        if (!Number.isFinite(sample)) throw new RangeError('PCM samples must be finite.');
+        windowed[n] = sample * window.coefficients[n]!;
+      }
+      // realTransform reads its input; the zero-padding tail stays zero across frames.
+      // Only DC..Nyquist of the interleaved output is used (indices <= fftSize + 1).
+      fft.realTransform(coefficients, windowed);
+      const power = new Float64Array(binCount);
+      let totalPower = 0;
+      for (let k = 0; k < binCount; k++) {
+        const re = coefficients[2 * k]!;
+        const im = coefficients[2 * k + 1]!;
+        const weight = k === 0 || k === fftSize / 2 ? 1 : 2;
+        const value = weight * (re * re + im * im) / denominator;
+        power[k] = value;
+        totalPower += value;
+      }
+      return { power, totalPower, bands: aggregateBandPower(power, sampleRate, fftSize) };
+    });
+    return {
+      sampleRate, fftSize, frameOffset, frameLength, frameDurationSeconds,
+      zeroPaddingSamples: fftSize - frameLength,
+      frequencyBinSpacingHz, frequencyHz: frequencyHz.slice(),
+      window: { type: window.type, coherentGain: window.coherentGain, meanSquareGain: window.meanSquareGain },
+      powerUnits: 'squared-linear-amplitude', normalization: 'one-sided-window-mean-square', channels,
+    };
+  } };
 }

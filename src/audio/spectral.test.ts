@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { sineWave } from './fixtures';
 import { periodicHann } from './windowing';
 import { aggregateBandPower, SOUNDSCAPE_BANDS } from './bands';
-import { analyzeSpectrum, SUPPORTED_FFT_SIZES } from './spectrum';
-import type { SpectrumOptions } from './spectrum';
+import { analyzeSpectrum, createSpectrumAnalyzer, SUPPORTED_FFT_SIZES } from './spectrum';
+import type { SpectrumOptions, SpectrumSettings } from './spectrum';
 import type { PcmAudio } from './pcm';
+import * as pcm from './pcm';
 
 // Float32 fixture quantization is ~1e-7 relative at unit amplitude. Analytic power
 // comparisons allow 1e-7 absolute error; same-input Number/FFT identities use 1e-12.
@@ -365,5 +366,120 @@ describe('spectral input validation', () => {
   });
   it('rejects spectral timing that cannot be represented by Number', () => {
     expect(() => analyzeSpectrum({ ...input, sampleRate: Number.MIN_VALUE }, options)).toThrow(RangeError);
+  });
+});
+
+describe('reusable spectral sessions', () => {
+  it.each([4, 997, 1024, 4096])('matches public calls and independent references with length %s', frameLength => {
+    let seed = 0x2402;
+    const randomChannel = () => Float32Array.from({ length: 9000 }, () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 0x100000000 - 0.5;
+    });
+    for (const channels of [[randomChannel()], [randomChannel(), randomChannel()]] as const) {
+      const input: PcmAudio = { sampleRate, channels };
+      const before = channels.map(channel => channel.slice());
+      const session = createSpectrumAnalyzer(input, { fftSize, frameLength });
+      for (const frameOffset of [0, 13, 2048, 9000 - frameLength, 0]) {
+        const result = session.analyzeFrame(frameOffset);
+        expect(result).toEqual(analyzeSpectrum(input, { fftSize, frameLength, frameOffset }));
+        for (const [index, channel] of channels.entries()) {
+          const selected = channel.subarray(frameOffset, frameOffset + frameLength);
+          close(result.channels[index]!.totalPower, referenceTotal(selected));
+          for (const k of [0, 1, 85, fftSize / 2]) {
+            close(result.channels[index]!.power[k]!, referenceBin(selected, fftSize, k));
+          }
+        }
+      }
+      expect(channels).toEqual(before);
+    }
+  });
+
+  it('keeps earlier frames and caller edits independent of scratch and later results', () => {
+    const input: PcmAudio = { sampleRate, channels: [tone(187.5, fftSize * 2), tone(1500, fftSize * 2)] };
+    // Frame B is silence, so scratch aliasing cannot hide behind equal outputs.
+    input.channels[0].fill(0, fftSize);
+    input.channels[1]!.fill(0, fftSize);
+    const session = createSpectrumAnalyzer(input, { fftSize });
+    const first = session.analyzeFrame(0);
+    const snapshot = structuredClone(first);
+    const second = session.analyzeFrame(fftSize);
+    expect(second.channels.every(channel => channel.totalPower === 0)).toBe(true);
+    expect(first).toEqual(snapshot);
+    first.frequencyHz.fill(-1);
+    first.channels[0]!.power.fill(-1);
+    (first.channels[0]!.bands[0] as { power: number }).power = -1;
+    (first.window as { coherentGain: number }).coherentGain = -1;
+    expect(session.analyzeFrame(0)).toEqual(snapshot);
+    expect(createSpectrumAnalyzer(input, { fftSize }).analyzeFrame(0)).toEqual(snapshot);
+  });
+
+  it.each(['silence', 'DC', 'Nyquist'] as const)('handles repeated %s frames and endpoint weights', kind => {
+    const samples = Float32Array.from({ length: 2048 }, (_, n) => kind === 'silence' ? 0 : kind === 'DC' ? 1 : (-1) ** n);
+    const session = createSpectrumAnalyzer(mono(samples), { fftSize: 1024 });
+    for (const frameOffset of [0, 1, 1024]) {
+      const result = session.analyzeFrame(frameOffset).channels[0]!;
+      close(result.totalPower, kind === 'silence' ? 0 : 1);
+      if (kind !== 'silence') close(result.power[kind === 'DC' ? 0 : 512]!, 2 / 3);
+      expect(result).toEqual(analyzeSpectrum(mono(samples), { fftSize: 1024, frameOffset }).channels[0]);
+    }
+  });
+
+  it('validates the recording only once, but every public single call validates again', () => {
+    const validation = vi.spyOn(pcm, 'validatePcm');
+    try {
+      const input = mono(tone(1000, fftSize * 2));
+      const session = createSpectrumAnalyzer(input, { fftSize });
+      session.analyzeFrame(0);
+      session.analyzeFrame(1);
+      session.analyzeFrame(fftSize);
+      expect(validation).toHaveBeenCalledTimes(1);
+      analyzeSpectrum(input, options);
+      analyzeSpectrum(input, options);
+      expect(validation).toHaveBeenCalledTimes(3);
+    } finally {
+      validation.mockRestore();
+    }
+  });
+
+  it('rejects invalid samples outside the frame at either safe public boundary', () => {
+    const samples = tone(1000, fftSize * 2);
+    samples[samples.length - 1] = NaN;
+    expect(() => createSpectrumAnalyzer(mono(samples), { fftSize })).toThrow(RangeError);
+    expect(() => analyzeSpectrum(mono(samples), options)).toThrow(RangeError);
+  });
+
+  it('captures metadata and rejects invalid offsets, mutated nonfinite samples, and detached buffers', () => {
+    const samples = tone(1000, fftSize * 2);
+    const input = { sampleRate, channels: [samples] as [Float32Array] };
+    const session = createSpectrumAnalyzer(input, { fftSize });
+    const before = session.analyzeFrame(0);
+    input.sampleRate = 1;
+    input.channels[0] = new Float32Array(1);
+    expect(session.analyzeFrame(0)).toEqual(before);
+    for (const offset of [-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER, fftSize + 1]) {
+      expect(() => session.analyzeFrame(offset)).toThrow(RangeError);
+    }
+    expect(() => session.analyzeFrame('0' as unknown as number)).toThrow(TypeError);
+    samples[1] = NaN;
+    expect(() => session.analyzeFrame(0)).toThrow(RangeError);
+    samples[1] = 0;
+    structuredClone(samples.buffer, { transfer: [samples.buffer] });
+    expect(() => session.analyzeFrame(0)).toThrow(RangeError);
+  });
+
+  it('retains configuration and PCM runtime validation at the session boundary', () => {
+    const input = mono(new Float32Array(fftSize));
+    for (const settings of [null, undefined, [], {}, { fftSize: '4096' }, { fftSize, frameLength: null }]) {
+      expect(() => createSpectrumAnalyzer(input, settings as unknown as SpectrumSettings)).toThrow(TypeError);
+    }
+    for (const settings of [{ fftSize: 3 }, { fftSize, frameLength: 3 }, { fftSize, frameLength: fftSize + 1 }]) {
+      expect(() => createSpectrumAnalyzer(input, settings)).toThrow(RangeError);
+    }
+    for (const invalid of [null, {}, { sampleRate, channels: [null] }]) {
+      expect(() => createSpectrumAnalyzer(invalid as unknown as PcmAudio, { fftSize })).toThrow(TypeError);
+    }
+    expect(() => createSpectrumAnalyzer(mono(new Float32Array(1024)), { fftSize })).toThrow(RangeError);
+    expect(() => createSpectrumAnalyzer(mono(new Float32Array(fftSize), Number.MIN_VALUE), { fftSize })).toThrow(RangeError);
   });
 });

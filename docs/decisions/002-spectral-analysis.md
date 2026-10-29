@@ -181,16 +181,18 @@ play audio, classify instruments, separate sources, or produce rendering data.
 The React demonstration remains a time-domain example. Outputs are mutable typed
 arrays owned by the caller; they do not share input or per-call workspace.
 
-Full PCM validation still scans the input, including samples outside the selected
-frame. Per-call FFT plans are not cached; workspace is reused only across that
-call's channels. No latency or throughput benchmark has been performed. Browser
-bundle compatibility is checked separately because the React entry does not yet
-import the spectral engine. Invalid types produce TypeError; invalid numbers,
+Task 002.5 adds a safe reusable session factory while preserving full validation
+for `analyzeSpectrum`. Plans, Hann coefficients, and scratch storage are private
+to each session. Browser execution and a repeated-frame benchmark are now
+verified separately from the unchanged React demonstration. See
+[003 — Spectral engine hardening](003-spectral-engine-hardening.md) for the
+validation boundary, ownership contract, measured results, and remaining risks.
+Invalid types produce TypeError; invalid numbers,
 unsupported sizes, bounds, unrepresentable timing/spacing, and band-sum overflow
 produce RangeError. Ordinary finite Float32 PCM cannot overflow double-precision
 power at the supported frame sizes.
 
 Deferred to a separately scoped Task 003: successive-window scheduling, hop size,
 time-indexed feature-frame contracts, and overlap policies. Streaming ownership,
-worker execution, plan caching, visualization, and playback synchronization remain
+worker execution, visualization, and playback synchronization remain
 separate decisions rather than implicit additions here.
