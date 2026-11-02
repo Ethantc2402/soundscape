@@ -2,7 +2,7 @@
 
 ## Known scope and workflows
 
-Soundscape 3D is an audio measurement foundation with pure TypeScript APIs and a React synthetic sine demonstration. It supports mono/stereo PCM validation, per-channel peak/RMS/mean square, selected-frame Hann-windowed FFT power, seven-band aggregation, and reusable spectral analyzer sessions.
+Soundscape 3D is an audio measurement foundation with pure TypeScript APIs and a React synthetic sine demonstration. It supports mono/stereo PCM validation, per-channel peak/RMS/mean square, selected-frame Hann-windowed FFT power, seven-band aggregation, reusable spectral analyzer sessions, and lazy time-indexed spectra over fully fitting windows with explicit sample hops.
 
 ## Requirements and constraints
 
