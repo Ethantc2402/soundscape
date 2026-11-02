@@ -46,3 +46,27 @@ Soundscape is a pure TypeScript audio measurement foundation with a React demo. 
 - Review the final diff for unintended changes and correctness; fix failures introduced by the work and distinguish pre-existing failures.
 - Never claim a check passed unless it ran and passed. Report exact blockers and anything unverified.
 - At completion, summarize changes and reasons, checks and results, limitations, risks, and decisions needed. Update the active plan to completed or record next steps.
+
+## Code quality reference
+
+- Consult [code quality and review context](docs/references/code-quality.md) for
+  the owner's video reference and the repository-specific cleanup checklist.
+  Preserve its source-verification status; do not attribute unverified advice to
+  the video. Base cleanups on concrete problems and the existing DSP contracts.
+
+## Ongoing code quality
+
+- Apply the project-specific principles in
+  [code quality context](docs/references/code-quality.md) to all new and changed
+  code. Prefer precise names, direct control flow, cohesive functions, explicit
+  ownership, and comments that explain constraints or reasons.
+- Introduce abstractions for concrete shared rules, not speculative reuse. Check
+  callers before removing code; preserve public contracts during cleanup. For
+  example, retain documented measurement names even when a different name seems
+  clearer, and explain their units rather than silently renaming the API.
+- Review shared validation, normalization, and analyzer state in proportion to
+  their impact. Use independent analytic evidence for mathematical correctness;
+  consistency between APIs alone is insufficient.
+- Use [the reusable cleanup prompt](docs/prompts/codebase-cleanup.md) when a
+  dedicated cleanup is requested. These standards do not authorize unrelated
+  refactoring during other milestones.
