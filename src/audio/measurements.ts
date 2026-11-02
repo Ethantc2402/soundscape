@@ -2,8 +2,11 @@ import { validatePcm } from './pcm';
 import type { PcmAudio } from './pcm';
 
 export interface ChannelMeasurement {
+  /** Maximum absolute stored sample, in linear amplitude. */
   readonly samplePeak: number;
+  /** Root mean square including DC, in linear amplitude. */
   readonly rms: number;
+  /** Mean-square signal power in squared linear amplitude; legacy name, not total energy. */
   readonly meanSquareEnergy: number;
 }
 
@@ -28,12 +31,13 @@ export function samplePeak(input: PcmAudio): number[] {
 export function perChannelMeanSquareEnergy(input: PcmAudio): number[] {
   validatePcm(input);
   return input.channels.map(channel => {
-    let sum = 0;
-    for (const sample of channel) sum += sample * sample;
-    return sum / channel.length;
+    let sumSquares = 0;
+    for (const sample of channel) sumSquares += sample * sample;
+    return sumSquares / channel.length;
   });
 }
 
+/** Root mean square per channel, including DC, in linear amplitude. */
 export function rms(input: PcmAudio): number[] {
   return perChannelMeanSquareEnergy(input).map(Math.sqrt);
 }
@@ -45,12 +49,12 @@ export function measureAudio(input: PcmAudio): AudioMeasurement {
     frameCount: input.channels[0].length,
     channels: input.channels.map(channel => {
       let peak = 0;
-      let sum = 0;
+      let sumSquares = 0;
       for (const sample of channel) {
         peak = Math.max(peak, Math.abs(sample));
-        sum += sample * sample;
+        sumSquares += sample * sample;
       }
-      const meanSquareEnergy = sum / channel.length;
+      const meanSquareEnergy = sumSquares / channel.length;
       return { samplePeak: peak, rms: Math.sqrt(meanSquareEnergy), meanSquareEnergy };
     }),
   };
