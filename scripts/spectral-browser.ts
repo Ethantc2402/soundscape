@@ -1,4 +1,5 @@
 import { analyzeSpectrum, createSpectrumAnalyzer } from '../src/audio/spectrum';
+import { createSpectrumTimeline } from '../src/audio/timeline';
 import { sineWave } from '../src/audio/fixtures';
 
 // Separate development-only entry: the application and its UI stay unchanged.
@@ -8,6 +9,10 @@ try {
   const pcm = { sampleRate, channels: [sineWave({ sampleRate, frameCount: fftSize, frequencyHz: 1000 })] as [Float32Array] };
   const results = [analyzeSpectrum(pcm, { fftSize, frameOffset: 0 }),
     createSpectrumAnalyzer(pcm, { fftSize }).analyzeFrame(0)];
+  const frames = [...createSpectrumTimeline(pcm, { fftSize, hopSize: 2048 })];
+  if (frames.length !== 1 || frames[0]!.startTimeSeconds !== 0 ||
+      frames[0]!.endTimeSeconds !== fftSize / sampleRate) throw new Error('Invalid timeline schedule');
+  results.push(frames[0]!.spectrum);
   const observations = results.map(result => {
     const power = result.channels[0]?.power;
     if (!power || !power.every(value => Number.isFinite(value) && value >= 0)) throw new Error('Invalid spectral power');

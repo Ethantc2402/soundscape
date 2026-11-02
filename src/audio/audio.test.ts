@@ -66,8 +66,31 @@ describe('PCM measurements', () => {
     expect(samplePeak(input)).toEqual([2]);
     close(rms(input)[0]!, Math.sqrt(5 / 3), AMPLITUDE_TOLERANCE);
     close(perChannelMeanSquareEnergy(input)[0]!, 5 / 3, ENERGY_TOLERANCE);
-    measureAudio(input);
+    const result = measureAudio(input);
+    expect(result.channels[0]!.samplePeak).toBe(2);
+    close(result.channels[0]!.rms, Math.sqrt(5 / 3), AMPLITUDE_TOLERANCE);
+    close(result.channels[0]!.meanSquareEnergy, 5 / 3, ENERGY_TOLERANCE);
     expect(samples).toEqual(before);
+  });
+
+  it.each([1, 4])('measures DC power without integrating over %s samples or mixing channels', length => {
+    const left = new Float32Array(length).fill(-2);
+    const right = new Float32Array(length).fill(0.5);
+    const input: PcmAudio = { sampleRate, channels: [left, right] };
+    const expected = [
+      { samplePeak: 2, rms: 2, meanSquareEnergy: 4 },
+      { samplePeak: 0.5, rms: 0.5, meanSquareEnergy: 0.25 },
+    ];
+    // Constant signals have mean square A² for any length or sample rate.
+    for (const rate of [sampleRate, sampleRate / 2]) {
+      const pcm = { ...input, sampleRate: rate };
+      expect(measureAudio(pcm).channels).toEqual(expected);
+      expect(samplePeak(pcm)).toEqual([2, 0.5]);
+      expect(rms(pcm)).toEqual([2, 0.5]);
+      expect(perChannelMeanSquareEnergy(pcm)).toEqual([4, 0.25]);
+    }
+    expect(left).toEqual(new Float32Array(length).fill(-2));
+    expect(right).toEqual(new Float32Array(length).fill(0.5));
   });
 
   const equivalenceInputs: [string, PcmAudio][] = [

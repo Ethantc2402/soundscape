@@ -10,6 +10,7 @@ Connected repository: [Ethantc2402/soundscape](https://github.com/Ethantc2402/so
 - [src/audio/pcm.ts](../src/audio/pcm.ts): PCM types and runtime validation.
 - [fixtures.ts](../src/audio/fixtures.ts), [measurements.ts](../src/audio/measurements.ts): synthetic samples and time-domain APIs.
 - [windowing.ts](../src/audio/windowing.ts), [spectrum.ts](../src/audio/spectrum.ts), [bands.ts](../src/audio/bands.ts): Hann window → FFT → one-sided power → band aggregation.
+- [timeline.ts](../src/audio/timeline.ts): eager recording/settings validation → single-use lazy sample-grid iteration → reusable spectral session, with start/end times.
 - `src/audio/*.test.ts`: numerical correctness, invalid inputs, boundaries, and ownership.
 - `scripts/`: browser smoke checks and spectral benchmarks.
 
@@ -23,4 +24,4 @@ No application credentials, authentication, database, backend, or external runti
 
 ## Constraints and proposed work
 
-Detailed mathematical and ownership contracts live in [README](../README.md) and decisions [001](decisions/001-audio-measurement.md), [002](decisions/002-spectral-analysis.md), and [003](decisions/003-spectral-engine-hardening.md). No architectural changes are proposed by the repository connection task.
+Detailed mathematical and ownership contracts live in [README](../README.md) and decisions [001](decisions/001-audio-measurement.md), [002](decisions/002-spectral-analysis.md), and [003](decisions/003-spectral-engine-hardening.md). Task 003 adds synchronous iteration over fully fitting windows; no streaming input or rendering changes. See [004](decisions/004-time-indexed-analysis.md) for the timeline contract.

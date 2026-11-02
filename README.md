@@ -1,8 +1,8 @@
 # Soundscape 3D — Audio measurement foundation
 
 Minimal Vite + React + strict TypeScript application with pure time-domain and
-single-frame FFT measurements. The React page remains a time-domain synthetic
-sine demonstration; spectral analysis is available as a tested TypeScript API.
+single-frame and time-indexed FFT measurements. The React page remains a
+time-domain synthetic sine demonstration; spectral analysis is available as a tested TypeScript API.
 No graphics, AI, network services, uploads, or audio playback are implemented.
 
 ## Development
@@ -33,6 +33,7 @@ the default home-directory npm cache is not writable.
 - `src/audio/audio.test.ts`: numerical fixtures and invalid-input tests.
 - `src/audio/windowing.ts`: periodic Hann coefficients and gain factors.
 - `src/audio/spectrum.ts`: selected-frame one-sided FFT power and reusable validated sessions, independent per channel.
+- `src/audio/timeline.ts`: lazy successive-window spectra with sample offsets and recording-relative times.
 - `src/audio/bands.ts`: deterministic bin-center power aggregation into seven bands.
 - `src/audio/spectral.test.ts`: spectral mathematics, validation, and boundary tests.
 - `src/main.tsx`: constructs a mono fixture, measures it, and renders the result.
@@ -179,8 +180,68 @@ then reusable processing of every frame, with three trials. For a smaller run:
 See [the hardening decision](docs/decisions/003-spectral-engine-hardening.md)
 for measured results, browser evidence, ownership rules, and Task 003 guidance.
 
-Current limitations: full buffers reside in memory and spectral analysis handles
-one selected frame per call. The engine does not identify instruments, separate
-sources, decode files, or visualize spectra. Successive-window scheduling and
-time-indexed features require a separately scoped Task 003; no streaming, workers,
-or STFT pipeline are implemented.
+## Time-indexed spectral analysis (Task 003)
+
+```ts
+import { createSpectrumTimeline } from './src/audio/timeline';
+
+const frames = createSpectrumTimeline(pcm, { fftSize: 4096, hopSize: 2048 });
+for (const frame of frames) {
+  // frame.index, frame.frameOffset, frame.startTimeSeconds, frame.endTimeSeconds
+  // frame.spectrum is the existing independent mono/stereo SpectrumResult.
+  console.log(frame.startTimeSeconds, frame.spectrum.channels[0]?.totalPower);
+}
+```
+
+The factory validates the entire PCM and fixed settings eagerly, once; spectra
+are computed lazily by a **single-use** synchronous iterator. `hopSize` is an
+explicit positive safe integer in samples per channel; overlap, adjacency, and
+gaps are allowed. Offsets are exactly `index * hopSize`, starting at zero, while
+the full observed frame fits. Incomplete tails are discarded, with no extra
+window appended. Valid nonempty recordings shorter than `frameLength` yield no
+frames; invalid PCM/settings still throw eagerly. `frameLength` defaults to
+`fftSize`; shorter explicit observations retain the existing FFT padding rules.
+
+Start time is `frameOffset / sampleRate`; end-exclusive time is
+`(frameOffset + frameLength) / sampleRate`, excluding padding. Nonfinite timeline
+times are rejected eagerly. Wrong types throw `TypeError`; invalid numeric values
+throw `RangeError`. Power normalization, units, bands, and channel order are unchanged.
+
+Keep source PCM stable for the iterator's lifetime: do not mutate or transfer it.
+The iterator retains PCM and one analyzer workspace while active, without storing
+previous spectra. Results belong to the caller and are independent of later
+frames and caller edits. Use `for...of` with `break` or the iterator's `return()`
+to stop early; release references when finished. Collecting all results can use
+substantial memory. This is iteration over in-memory audio, without streaming
+input, playback, wall-clock scheduling, workers, or a reconstruction STFT pipeline.
+The React demonstration is unchanged. See [the time-indexed decision](docs/decisions/004-time-indexed-analysis.md).
+
+Current limitations: full buffers reside in memory. The engine does not identify
+instruments, separate sources, decode files, or visualize spectra.
+
+## Code quality context
+
+See [code quality and review context](docs/references/code-quality.md) for the
+owner's video reference, its verification status, and a focused cleanup checklist.
+
+## Project skills
+
+Repository-scoped workflows live in `.agents/skills/`:
+
+- `$soundscape-plan`: plan bounded work with contract impact, analytic acceptance
+  criteria, and resumable steps; planning-only requests stop before implementation.
+- `$soundscape-build`: implement authorized changes, preserve unrelated work, and
+  verify the result using the repository's commands and DSP contracts.
+- `$soundscape-review`: review changes and callers for demonstrated regressions,
+  numerical correctness, and ownership failures; review-only work stays read-only.
+- `$soundscape-walkthrough`: after QA, learn how to review the actual code step by
+  step, answer one understanding question at a time, and practice on fresh cases.
+  Teaching does not modify code or sign off a milestone. For example: "Use
+  $soundscape-walkthrough to explain Task 003 and test my understanding."
+
+Mention a skill explicitly or let Codex select it for a matching Soundscape task.
+The skills reference existing project guidance and do not add dependencies or
+authorize pushes, merges, or external comments. See the
+[research](docs/references/skill-research.md) and
+[implementation verification](docs/plans/2026-11-01-project-skills.md) for rationale
+and evaluation limits.
