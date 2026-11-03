@@ -1,3 +1,4 @@
+import FFT from 'fft.js';
 import { describe, expect, it, vi } from 'vitest';
 import * as pcm from './pcm';
 import type { PcmAudio } from './pcm';
@@ -62,14 +63,20 @@ describe('spectral timeline scheduling', () => {
   });
 
   it('computes lazily and closes on early termination', () => {
-    const input = mono(12);
-    const iterator = createSpectrumTimeline(input, settings);
-    input.channels[0][5] = NaN;
-    for (const frame of iterator) {
-      expect(frame.index).toBe(0);
-      break; // An eager implementation would have thrown on the second frame.
+    const transform = vi.spyOn(FFT.prototype, 'realTransform');
+    try {
+      const iterator = createSpectrumTimeline(mono(12), settings);
+      expect(transform).toHaveBeenCalledTimes(0);
+      for (const frame of iterator) {
+        expect(frame.index).toBe(0);
+        expect(transform).toHaveBeenCalledTimes(1);
+        break;
+      }
+      expect(transform).toHaveBeenCalledTimes(1);
+      expect(iterator.next().done).toBe(true);
+    } finally {
+      transform.mockRestore();
     }
-    expect(iterator.next().done).toBe(true);
   });
 });
 
@@ -94,6 +101,12 @@ describe('timeline validation', () => {
     { sampleRate: 48000, channels: [new Float32Array(1), new Float32Array(2)] },
     { sampleRate: 48000, channels: [new Float32Array(12).fill(NaN)] }])('rejects invalid PCM', value => {
     expect(() => createSpectrumTimeline(value as PcmAudio, settings)).toThrow(RangeError);
+  });
+  it('rejects a nonfinite sample in the discarded tail at construction', () => {
+    const input = mono(11);
+    input.channels[0][10] = NaN;
+
+    expect(() => createSpectrumTimeline(input, settings)).toThrow(RangeError);
   });
   it.each([1, 12])('rejects unrepresentable spectral timing with length %s', length => {
     expect(() => createSpectrumTimeline(mono(length, Number.MIN_VALUE), settings)).toThrow(RangeError);
