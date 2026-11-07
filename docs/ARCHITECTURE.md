@@ -6,7 +6,8 @@ Connected repository: [Ethantc2402/soundscape](https://github.com/Ethantc2402/so
 
 ## Components and data flow
 
-- [src/main.tsx](../src/main.tsx): synthetic sine → PCM → measurements → React display.
+- [src/main.tsx](../src/main.tsx): renders the synthetic sine measurements and the band-power heatmap.
+- [demo-band-timeline.ts](../src/demo-band-timeline.ts): mono fixture → spectrum timeline → compact display columns with time intervals and band power.
 - [src/audio/pcm.ts](../src/audio/pcm.ts): PCM types and runtime validation.
 - [fixtures.ts](../src/audio/fixtures.ts), [measurements.ts](../src/audio/measurements.ts): synthetic samples and time-domain APIs.
 - [windowing.ts](../src/audio/windowing.ts), [spectrum.ts](../src/audio/spectrum.ts), [bands.ts](../src/audio/bands.ts): Hann window → FFT → one-sided power → band aggregation.
@@ -24,4 +25,4 @@ No application credentials, authentication, database, backend, or external runti
 
 ## Constraints and proposed work
 
-Detailed mathematical and ownership contracts live in [README](../README.md) and decisions [001](decisions/001-audio-measurement.md), [002](decisions/002-spectral-analysis.md), and [003](decisions/003-spectral-engine-hardening.md). Task 003 adds synchronous iteration over fully fitting windows; no streaming input or rendering changes. See [004](decisions/004-time-indexed-analysis.md) for the timeline contract.
+Detailed mathematical and ownership contracts live in [README](../README.md) and decisions [001](decisions/001-audio-measurement.md), [002](decisions/002-spectral-analysis.md), and [003](decisions/003-spectral-engine-hardening.md). Task 003 adds synchronous iteration over fully fitting windows. Task 004 consumes that iterator once at demo initialization and retains only the display columns. See [004](decisions/004-time-indexed-analysis.md) for the timeline contract.

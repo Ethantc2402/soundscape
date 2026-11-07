@@ -1,0 +1,75 @@
+main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem;
+  font-family: system-ui, sans-serif;
+}
+
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+section {
+  --power-low: #eff6ff;
+  --power-high: #173b79;
+}
+
+.power-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.power-ramp {
+  width: 6rem;
+  height: 0.75rem;
+  background: linear-gradient(to right in srgb, var(--power-low), var(--power-high));
+  border: 1px solid #475569;
+}
+
+.heatmap-scroll {
+  container-type: inline-size;
+  overflow-x: auto;
+}
+
+.heatmap-scroll:focus-visible {
+  outline: 3px solid #173b79;
+  outline-offset: 3px;
+}
+
+.heatmap {
+  width: 100%;
+  min-width: 40rem;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.heatmap caption {
+  position: sticky;
+  left: 0;
+  width: 100cqi;
+  margin-bottom: 0.5rem;
+  text-align: left;
+}
+
+.heatmap th,
+.heatmap td {
+  padding: 0.5rem;
+  border: 1px solid #94a3b8;
+  text-align: center;
+}
+
+.heatmap th {
+  background: #f1f5f9;
+}
+
+.heatmap th:first-child {
+  position: sticky;
+  left: 0;
+}
+
+.heatmap th[scope='row'] {
+  text-align: left;
+}

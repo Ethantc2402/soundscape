@@ -1,9 +1,9 @@
 # Soundscape 3D — Audio measurement foundation
 
 Minimal Vite + React + strict TypeScript application with pure time-domain and
-single-frame and time-indexed FFT measurements. The React page remains a
-time-domain synthetic sine demonstration; spectral analysis is available as a tested TypeScript API.
-No graphics, AI, network services, uploads, or audio playback are implemented.
+single-frame and time-indexed FFT measurements. The React demo shows
+time-domain measurements for a synthetic sine and a band-power heatmap for a
+separate mono recording.
 
 ## Development
 
@@ -36,7 +36,8 @@ the default home-directory npm cache is not writable.
 - `src/audio/timeline.ts`: lazy successive-window spectra with sample offsets and recording-relative times.
 - `src/audio/bands.ts`: deterministic bin-center power aggregation into seven bands.
 - `src/audio/spectral.test.ts`: spectral mathematics, validation, and boundary tests.
-- `src/main.tsx`: constructs a mono fixture, measures it, and renders the result.
+- `src/demo-band-timeline.ts`: builds a mono fixture and projects its spectra to band names, powers, and time intervals.
+- `src/main.tsx`: renders the time-domain measurements and band-power heatmap.
 
 `PcmAudio` carries a finite positive sample rate in samples/second (Hz) and a
 tuple containing one mono `Float32Array` or two arrays in left/right order.
@@ -214,10 +215,19 @@ frames and caller edits. Use `for...of` with `break` or the iterator's `return()
 to stop early; release references when finished. Collecting all results can use
 substantial memory. This is iteration over in-memory audio, without streaming
 input, playback, wall-clock scheduling, workers, or a reconstruction STFT pipeline.
-The React demonstration is unchanged. See [the time-indexed decision](docs/decisions/004-time-indexed-analysis.md).
+See [the time-indexed decision](docs/decisions/004-time-indexed-analysis.md).
 
 Current limitations: full buffers reside in memory. The engine does not identify
-instruments, separate sources, decode files, or visualize spectra.
+instruments, separate sources, or decode files.
+
+## Frequency-band power over time (Task 004)
+
+The heatmap shows six adjacent 0.1-second windows of a built-in mono recording.
+The first two windows contain a 150 Hz tone (Bass), the middle two are silent,
+and the last two contain a 3,000 Hz tone (High mids). A shared linear color
+scale runs from 0 to 0.5 in squared linear amplitude. Cell values are shown
+to three decimal places. On narrow screens, Tab focuses the heatmap region
+and the arrow keys scroll through the time columns.
 
 ## Code quality context
 
