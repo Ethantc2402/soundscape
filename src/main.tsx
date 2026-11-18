@@ -3,6 +3,7 @@ import { sineWave } from './audio/fixtures';
 import { measureAudio } from './audio/measurements';
 import { createDemoBandTimeline } from './demo-band-timeline';
 import './demo.css';
+import { ImportedSong } from './ImportedSong';
 
 const result = measureAudio({
   sampleRate: 48000,
@@ -67,6 +68,8 @@ function App() {
   return (
     <main>
       <h1>Soundscape 3D</h1>
+      <ImportedSong />
+      <h2>Built-in synthetic examples</h2>
       <p>Mono sine fixture: 1 kHz, 48 kHz sample rate, one second.</p>
       <pre>{JSON.stringify(result, null, 2)}</pre>
       <BandPowerHeatmap />

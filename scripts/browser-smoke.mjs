@@ -1,18 +1,19 @@
 import { createServer } from 'vite';
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 // Use Chromium's built-in debugging protocol and Node's WebSocket; no test framework.
 const profile = await mkdtemp(join(tmpdir(), 'soundscape-browser-'));
+const smokeEntry = process.env.SMOKE_ENTRY === 'import' ? 'import' : 'spectral';
 const server = await createServer({ cacheDir: join(profile, 'vite-cache'), server: { host: '127.0.0.1', port: 5173 }, plugins: [{
   name: 'spectral-smoke-entry',
   configureServer(server) {
     server.middlewares.use('/__spectral-smoke.html', (_request, response) => {
       response.setHeader('Content-Type', 'text/html');
-      response.end(`<!doctype html><html><body data-status="pending">Spectral smoke pending<script type="module" src="/scripts/spectral-browser.ts" onerror="document.body.dataset.status='failed';document.body.textContent='Spectral smoke module failed to load'"></script></body></html>`);
+      response.end(`<!doctype html><html><body data-status="pending">Browser checks pending<script type="module" src="/scripts/${smokeEntry}-browser.ts" onerror="document.body.dataset.status='failed';document.body.textContent='Browser check module failed to load'"></script></body></html>`);
     });
   },
 }] });
@@ -34,7 +35,7 @@ try {
   browser.on('error', error => { launchError = error; });
   browser.stderr.on('data', data => { stderr = (stderr + data).slice(-12000); });
   let debugPort;
-  const deadline = Date.now() + 30000;
+  const deadline = Date.now() + (smokeEntry === 'import' ? 120000 : 30000);
   while (!debugPort && Date.now() < deadline) {
     if (launchError) throw launchError;
     if (browser.exitCode !== null || browser.signalCode !== null) throw new Error(`Chromium exited: ${stderr}`);
@@ -76,8 +77,16 @@ try {
   await command('Runtime.enable');
   let outcome;
   while (Date.now() < deadline) {
-    const result = await command('Runtime.evaluate', { expression: 'JSON.stringify({status:document.body?.dataset.status,text:document.body?.textContent})', returnByValue: true });
+    const result = await command('Runtime.evaluate', { expression: 'JSON.stringify({status:document.body?.dataset.status,text:document.body?.textContent,capture:document.body?.dataset.capture})', returnByValue: true });
     outcome = JSON.parse(result.result.value);
+    if (smokeEntry === 'import' && ['desktop', 'narrow'].includes(outcome.capture)) {
+      const bounds = await command('Runtime.evaluate', { expression: 'JSON.stringify((()=>{const r=document.querySelector("iframe").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,scale:1}})())', returnByValue: true });
+      const screenshot = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: JSON.parse(bounds.result.value) });
+      const path = join(tmpdir(), `soundscape-task005-${outcome.capture}.png`);
+      await writeFile(path, Buffer.from(screenshot.data, 'base64'));
+      console.log(`Screenshot: ${path}`);
+      await command('Runtime.evaluate', { expression: 'delete document.body.dataset.capture' });
+    }
     if (outcome.status === 'passed' || outcome.status === 'failed') break;
     await delay(100);
   }

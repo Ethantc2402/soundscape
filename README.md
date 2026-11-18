@@ -5,6 +5,9 @@ single-frame and time-indexed FFT measurements. The React demo shows
 time-domain measurements for a synthetic sine and a band-power heatmap for a
 separate mono recording.
 
+Task 005 also adds local WAV import, independent mono/stereo whole-record
+measurements, and seven-band inspection of a selected 8,192-sample window.
+
 ## Development
 
 Requires Node.js >=22.12.0 and npm. From the repository root:
@@ -217,8 +220,47 @@ substantial memory. This is iteration over in-memory audio, without streaming
 input, playback, wall-clock scheduling, workers, or a reconstruction STFT pipeline.
 See [the time-indexed decision](docs/decisions/004-time-indexed-analysis.md).
 
-Current limitations: full buffers reside in memory. The engine does not identify
-instruments, separate sources, or decode files.
+Current limitations: full buffers reside in memory. The pure engine does not
+identify instruments, separate sources, or decode files; the browser adapter
+handles local WAV decoding separately.
+
+## Inspecting a local song (Task 005)
+
+Choose a mono/stereo PCM WAV in **Inspect a local song**. Files stay on the device;
+there is no upload. Limits are 64 MiB encoded and five decoded minutes. PCM16 and
+PCM24 are browser-tested; other WAV encodings are not guaranteed. Import uses a
+48 kHz offline decoding context and displays the actual decoded sample rate.
+This may differ from the source rate. Browser PCM conversion can also affect
+sample values; Soundscape does not normalize or clip decoded PCM.
+
+Whole-record sample peak/RMS use linear amplitude; mean-square and band power use
+squared linear amplitude. Select a window start with the number input or slider.
+The view shows actual sample offset and end-exclusive window times. The final
+window clamps to fit; short recordings retain whole-record results without a
+spectral window. Values describe measurements, not mix-quality judgments.
+On narrow screens the named table regions can be focused and scrolled.
+
+Cancel/replacement discards stale results. Native decoding cannot be interrupted;
+one read/decode pipeline runs at a time, with only the latest pending selection.
+Decoded duration/channel guards apply after browser allocation, so the file cap
+is not a hard bound on decoder memory. Full-record copying/validation/measurement
+is synchronous, with phase updates yielding to the browser before scans.
+
+New modules: `src/browser/import-audio.ts` owns decoding and fresh PCM copies;
+`src/import-session.ts` serializes requests; `src/song-inspection.ts` reuses one
+spectral analyzer; `src/ImportedSong.tsx` owns the React UI lifecycle.
+
+Run real decoding, UI, and five-minute workload checks with:
+
+```sh
+SMOKE_ENTRY=import npm run test:browser
+```
+
+Use `CHROMIUM` to select Chrome/Chromium as with the existing engine check.
+The check writes desktop/narrow screenshots to the system temporary directory
+and reports measured timings; those are environment-specific, not guarantees.
+See [the import decision](docs/decisions/005-local-song-import.md) and
+[Task 005 results](docs/plans/2026-11-16-task-005-local-song-inspection.md).
 
 ## Frequency-band power over time (Task 004)
 

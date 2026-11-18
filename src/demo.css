@@ -73,3 +73,15 @@ section {
 .heatmap th[scope='row'] {
   text-align: left;
 }
+
+.song-results h3 { overflow-wrap: anywhere; }
+.song-controls { display: grid; gap: 0.5rem; margin-block: 1rem; }
+.song-controls input { min-width: 0; width: 100%; box-sizing: border-box; }
+#song-file { max-width: 100%; }
+.song-table { border-collapse: collapse; width: 100%; min-width: 32rem; font-variant-numeric: tabular-nums; }
+.song-table caption { text-align: left; margin-block: 0.75rem; position: sticky; left: 0; width: 100cqi; }
+.song-table th, .song-table td { border: 1px solid #94a3b8; padding: 0.4rem; }
+.song-table th { text-align: left; }
+.song-table-scroll { max-width: 100%; overflow-x: auto; container-type: inline-size; }
+.song-table-scroll:focus-visible { outline: 3px solid #173b79; outline-offset: 3px; }
+input:focus-visible, button:focus-visible { outline: 3px solid #173b79; outline-offset: 3px; }

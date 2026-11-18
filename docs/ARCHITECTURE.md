@@ -14,8 +14,22 @@ Connected repository: [Ethantc2402/soundscape](https://github.com/Ethantc2402/so
 - [timeline.ts](../src/audio/timeline.ts): eager recording/settings validation → single-use lazy sample-grid iteration → reusable spectral session, with start/end times.
 - `src/audio/*.test.ts`: numerical correctness, invalid inputs, boundaries, and ownership.
 - `scripts/`: browser smoke checks and spectral benchmarks.
+- `src/browser/import-audio.ts`: local RIFF WAV → 48 kHz offline browser decode →
+  guarded mono/stereo copy → validated session-owned PCM.
+- `src/import-session.ts`: one active import pipeline, latest pending request,
+  cancellation/disposal invalidation and stale-result suppression.
+- `src/song-inspection.ts`: whole-record measurements once → reusable analyzer →
+  compact per-channel bands for a selected 8,192-sample window.
+- `src/ImportedSong.tsx`: file selection, lifecycle, measurement tables, and
+  numeric/slider time inspection. This browser-bound view sits beside the demo.
 
 DSP remains pure TypeScript, independent of React, DOM, Web Audio, and rendering. Storage is in-memory planar Float32 PCM with preserved mono/stereo order. Analyzer sessions retain private workspaces; callers must not mutate or transfer source PCM during a session.
+
+The import UI owns session PCM and releases it when replaced/unmounted. Decoding
+returns fresh copies; no buffer is transferred or shared with AudioBuffer storage.
+Only compact selected-window bands reach the view; full-spectrum history is not
+retained. Native decode may finish after cancellation, but cannot publish stale
+data. See [decision 005](decisions/005-local-song-import.md) for resource limits.
 
 ## Setup and checks
 

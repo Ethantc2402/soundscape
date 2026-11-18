@@ -6,12 +6,22 @@ Soundscape 3D is an audio measurement foundation with pure TypeScript APIs and a
 
 ## Requirements and constraints
 
+The first real-song workflow accepts one local mono/stereo WAV (64 MiB, five
+minutes decoded), shows decoded metadata and whole-record measurements, and lets
+the user inspect per-channel band power at a selected time. PCM16/PCM24 decoding
+has been tested in macOS Chrome. Import uses a 48 kHz offline context and may
+resample. Files stay local. Loading, cancel/replacement, errors, and short audio
+have explicit states. The original synthetic examples remain available.
+
 Preserve input immutability, left/right channel order, finite over-range samples, intentional error classes, and numerical tolerances. Keep DSP independent of React and browser APIs. Follow the contracts and definitions in [README](../README.md) and the [audio measurement decision](decisions/001-audio-measurement.md).
 
 ## Exclusions
 
-No 3D rendering, AI, playback, uploads, decoding, network services, instrument identification, source separation, streaming, workers, or STFT pipeline are implemented. Future additions require explicit task scope.
+No 3D rendering, AI, playback, uploads, network services, instrument identification, source separation, streaming, workers, or STFT reconstruction pipeline are implemented. Future additions require explicit task scope. File decoding is confined to the browser adapter.
 
 ## Assumptions and unanswered questions
 
-The repository establishes technical scope, but does not establish intended end users or their broader problems. No additional product requirements are assumed. Clarify the intended users, first end-to-end workflow, and next milestone before extending product scope.
+The owner selected finished stereo mixes as the first product input. The broader
+goal is a synchronized mix visualizer that helps locate potential problems; this
+milestone supplies measurements, without diagnostic claims. Playback is the next
+planned slice. See [the roadmap](plans/2026-11-16-stereo-mix-visualizer-roadmap.md).
