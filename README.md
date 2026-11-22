@@ -10,6 +10,10 @@ measurements, and seven-band inspection of a selected 8,192-sample window.
 
 ## Development
 
+For cloud/phone work, see [Cloud development](docs/CLOUD-DEVELOPMENT.md) and the
+[delivery resume prompt](docs/prompts/resume-cloud-development.md). Project rules,
+skills and current plans live in this repository; local chat history is separate.
+
 Requires Node.js >=22.12.0 and npm. From the repository root:
 
 ```sh

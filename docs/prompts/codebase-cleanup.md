@@ -21,8 +21,9 @@ use the documented project principles without inventing video takeaways.
 2. Select a bounded set of improvements within the requested scope. Explain each
    problem and observable outcome briefly. For substantial work, maintain a
    separate plan in docs/plans/ with acceptance criteria and progress. Proceed
-   using reasonable assumptions; ask only when an answer materially affects
-   correctness, scope, architecture, or user experience.
+   only after the owner has approved its implementation choices. Ask one focused
+   question at a time and wait for an explicit answer, following AGENTS.md; do
+   not infer consent or choose a default after a timeout.
 3. Prefer direct control flow, precise names, explicit data ownership, and small
    cohesive functions. Extract helpers when they clarify a real shared rule.
    Remove dead code only after checking references. Write comments explaining

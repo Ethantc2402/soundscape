@@ -37,6 +37,13 @@ Push or open pull requests only when authorized; never merge automatically.
 
 ## Continue from a phone
 
+For migrated sequential delivery, use
+[the resume prompt](prompts/resume-cloud-development.md) and
+[delivery protocol](prompts/autonomous-delivery.md). In the existing clean cloud
+checkout, fetch and fast-forward `checkpoint/cloud-handoff-2026-11-22` to the
+latest published commit first. Preserve new work and report divergence instead
+of resetting it. A push alone neither updates an active task nor starts its loop.
+
 In the ChatGPT mobile app, use the same account/workspace, open Codex, choose
 Cloud, and reopen the same cloud task to retain its working state. Review changed
 files, test results, and open decisions there. Starting another task creates a
@@ -55,6 +62,22 @@ needs source control; saved task state is not a permanent backup.
   Read their current decisions before choosing implementation work.
 - Keep local listening and physical-output checks on a device with real audio
   output. Cloud unit tests and builds cannot establish those acceptance criteria.
+
+## Reusable Soundscape environment
+
+On web or desktop, choose **Work in > Cloud > Select environment > Create
+environment**, or **Settings > Codex Cloud > Environments > Create environment**.
+Connect `Ethantc2402/soundscape`, name the environment Soundscape, and use Node
+>=22.12.0 plus the installation/check commands above. Until reviewed and merged,
+select `checkpoint/cloud-handoff-2026-11-22` if a branch selector is available;
+otherwise explicitly check out that branch during setup. Review the setup report
+and publish the environment. On mobile select it for new tasks. The existing
+verified default-environment chat can continue without another environment.
+
+The environment supplies code/tools; AGENTS and the delivery protocol supply
+project rules. Every new task must verify the handoff branch and commit. Local
+chat history and personal skills are not automatically copied. All four
+Soundscape skills are committed under `.agents/skills/`.
 
 ## Migration verification
 

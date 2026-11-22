@@ -3,6 +3,24 @@
 Status: in progress — November 22, 2026. Coordination ledger; individual milestone
 plans retain their own acceptance gates. Protocol: [sequential delivery](../prompts/autonomous-delivery.md).
 
+## Current execution target — Cloud
+
+The owner requested migration of the existing delivery instructions to Cloud on
+November 22, 2026 in “Enable online builds”. Continue in Codex Cloud from
+`checkpoint/cloud-handoff-2026-11-22` in `Ethantc2402/soundscape`, verifying the
+current published handoff commit. All four skills, phase updates, interactive
+walkthroughs, and ask/wait-before-every-choice rule remain required. This section
+and the current protocol supersede historical local IDs, laptop paths, and local
+successor directions below.
+
+The owner reported cloud setup at `d69c4eb8764f7aa4de34932ba48457f3b9a4a157`
+passed installation, 491 tests in 11 files, typecheck, build, and whitespace checks
+with Node v24.22.3/npm 11.19.1. Local reproduction excluding the older nested
+checkout also passed 491 tests; the original 573 included 82 nested-checkout tests.
+Cloud results are owner-reported, not direct access from this migration chat.
+Delivery-loop activation and phone push remain unverified. See the
+[migration plan](2026-11-22-cloud-delivery-migration.md).
+
 ## Why now and authorization
 
 Latest direct owner correction, November 22, in chat
@@ -288,17 +306,18 @@ buffers/results, replacement and effect replay. Fix only demonstrated focused
 defects; justified no-change audit is valid. AD-002 and AD-004 are complete; do
 not reopen their modules absent new evidence or claim UI/harness audits complete.
 
-AD-003 remains unimplemented, waiting for owner fixed-reference versus per-window
-normalization answer in predecessor chat 01a203d9-46c9-78d2-884b-c326d4084b29.
-Check actual answers/steering before re-asking; silence is not agreement. Then
-discuss floor and resolution one at a time. Do not implement unapproved display
-rules. Independent AD-005 can proceed. Named plan/build/QA/review/walkthrough
+AD-003 remains unimplemented. Fixed reference, −100 to 0 dB, above-range handling,
+silence/below-range distinction, unsmoothed points and logarithmic visible range
+are already approved. Resume decisions at **FE-01 / question 5 — channel
+presentation** in the product backlog; do not re-ask resolved questions.
+Ask and wait before every remaining implementation choice. Read-only AD-005
+inspection may proceed; fixes require approved choices. Named plan/build/QA/review/walkthrough
 summaries must explain why now, outcome/check and material choice, actual edits
 or justified no-change, findings first and honest self-review limits. After QA
 teach one small verified-source segment with concrete data flow/review principle
 and one understanding question. Await actual answers/adapt; learning is unassessed
 and conversation-only unless notes requested. It does not block independent work;
-material design answers block dependent implementation.
+all pending implementation answers block dependent implementation.
 
 Task 006 remains in progress. Native startup needs a default-path known built-in/
 wired physical-output run with actual route, OS/browser and constructor/click/
@@ -309,8 +328,8 @@ display, native peak/reclamation, physical dropped frames and remaining listenin
 manual accessibility/device acceptance stay open.
 
 Finish every write and possible QA/review, update plan/ledger with precise next
-task, rediscover list_projects/create_thread, call list_projects and create
-exactly one local successor in the same project, omitting model/thinking.
+task and published branch/commit, then follow the current protocol to create
+exactly one **Cloud** successor, omitting model/thinking. Never use a local target.
 Include original authorization verbatim/provenance, complete protocol read,
 all FOUR linked skill invocations and phase/interactive teaching requirements,
 paths, actual checks/blockers, next task and successor obligation. No edits after
@@ -318,12 +337,11 @@ successful creation. Normal next independent audit after AD-005 is AD-009 UI/
 accessibility, unless actual material answers make AD-003 ready; inspect before
 selecting. AD-006/007/008 need their own specifications. Stop creating empty chats
 if only external evidence/design answers remain with no executable work.
-Use existing local checkout; no worktrees, unauthorized commits/pushes/merges,
+Use the current cloud checkout; no worktrees, unauthorized commits/pushes/merges,
 external feedback, dependencies, settings changes, recurring jobs or swarm.
-Project rediscovered with list_projects: 20650420-e5ab-419c-9b6a-885a1d413fb6,
-/Users/ethancarvalho/soundscape.
+Rediscover runnable cloud environments rather than reusing historical local IDs.
 
-## Successor creation blocker — AD-004
+## Historical successor creation blocker — AD-004
 
 The attempt to create “Audit song session state and lifetimes” was rejected by
 automatic approval review: creating a successor is a bounded side effect, but
