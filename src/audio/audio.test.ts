@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sineWave } from './fixtures';
-import { measureAudio, perChannelMeanSquareEnergy, rms, samplePeak } from './measurements';
+import { measureAudioSteps, measureAudio, perChannelMeanSquareEnergy, rms, samplePeak } from './measurements';
 import type { PcmAudio } from './pcm';
 import { validatePcm } from './pcm';
 
@@ -201,4 +201,26 @@ describe('sine fixture', () => {
   ])('rejects invalid options %j', override => {
     expect(() => sineWave({ sampleRate, frameCount: 8, frequencyHz: 1000, ...override })).toThrow(RangeError);
   });
+});
+
+
+it('incrementally measures extrema at chunk boundaries and the tail without changing summation or PCM', () => {
+  const length = 2 * 262144 + 3;
+  const left = new Float32Array(length).fill(0.25);
+  const right = new Float32Array(length);
+  for (const index of [262143, 262144, length - 1]) left[index] = -2;
+  right[length - 1] = 0.5;
+  const pcm: PcmAudio = { sampleRate: 48000, channels: [left, right] };
+  const before = [left.slice(), right.slice()];
+  const steps = measureAudioSteps(pcm);
+  let step = steps.next();
+  expect(step.done).toBe(false);
+  while (!step.done) step = steps.next();
+  const expectedPower = ((length - 3) / 16 + 12) / length;
+  expect(step.value.channels).toEqual([
+    { samplePeak: 2, meanSquareEnergy: expectedPower, rms: Math.sqrt(expectedPower) },
+    { samplePeak: 0.5, meanSquareEnergy: 0.25 / length, rms: Math.sqrt(0.25 / length) },
+  ]);
+  expect(step.value).toEqual(measureAudio(pcm));
+  expect(pcm.channels).toEqual(before);
 });

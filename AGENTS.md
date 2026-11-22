@@ -27,8 +27,25 @@ Soundscape is a pure TypeScript audio measurement foundation with a React demo. 
 
 - Read relevant instructions, docs, implementation, and tests before proposing changes.
 - For substantial work, maintain a separate plan in `docs/plans/` with observable acceptance criteria and short implementation and verification steps. Update progress and next steps so another chat can resume.
-- Keep planning proportionate for small fixes. Ask only questions that materially affect correctness, scope, architecture, or user experience; otherwise state reasonable assumptions and proceed.
+- Keep planning proportionate for small fixes. The owner's latest rule is to ask and wait before every implementation choice, including routine reversible choices. Present one focused question with a recommendation and short tradeoff; wait for an explicit answer before dependent implementation. No timeout defaults or inferred consent. Read-only inspection and verification may continue. This rule overrides earlier assumption guidance in prompts and skills; choices explicitly settled by the owner do not need reapproval.
 - When asked for planning only, stop before implementation.
+
+## Cloud delivery and owner communication
+
+- Ongoing sequential delivery runs in Codex Cloud. Read
+  `docs/CLOUD-DEVELOPMENT.md`, `docs/prompts/autonomous-delivery.md`, and the
+  current `docs/plans/2026-11-22-autonomous-delivery.md` ledger before resuming.
+- Discover the current repository root; do not depend on laptop paths, local
+  project IDs, local chat history, or personal skills outside the repository.
+  Use the four repository workflows for plan, build, review, and walkthrough.
+- Keep phase updates short, explain the user benefit first, and ask one choice
+  at a time in the active cloud chat so the owner can respond from a phone.
+  In-chat messages do not prove push delivery; notification settings and a real
+  phone notification test remain separate checks.
+- Successors must run in Cloud and start from the exact published handoff commit.
+  Never silently create a local successor. If cloud creation, trusted user
+  authorization, or publishing permission is unavailable, save the handoff and
+  report the blocker rather than claiming automatic continuation succeeded.
 
 ## Implementation
 
