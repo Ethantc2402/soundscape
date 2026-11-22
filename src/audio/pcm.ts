@@ -39,8 +39,8 @@ export function validatePcm(input: PcmAudio): void {
     if (channel.length !== frameCount) {
       throw new RangeError('PCM channel lengths must match.');
     }
-    for (const sample of channel) {
-      if (!Number.isFinite(sample)) throw new RangeError('PCM samples must be finite.');
+    for (let index = 0; index < channel.length; index++) {
+      if (!Number.isFinite(channel[index])) throw new RangeError('PCM samples must be finite.');
     }
   }
 }

@@ -88,3 +88,18 @@ describe('song inspection', () => {
     expect(iterator.mock.calls.length).toBe(scans);
   });
 });
+
+it('maps exact transport samples independently of seconds rounding, end and loop seam', () => {
+  const samples = new Float32Array(16384);
+  samples.set(tone(187.5, 0.5, 8192)); samples.set(tone(3000, 0.25, 8192), 8192);
+  const inspection = createSongInspection({ sampleRate: 48000, channels: [samples] });
+  expect(inspection.inspectSample(27)!.frameOffset).toBe(27);
+  expect(inspection.inspectSample(16384)!.frameOffset).toBe(8192);
+  const loopStart = inspection.inspectSample(0)!;
+  near(loopStart.channels[0]![1]!.power, 0.125);
+  const end = inspection.inspectSample(16384)!;
+  near(end.channels[0]![4]!.power, 0.03125);
+  for (const band of end.channels[0]!) if (band.name !== 'High mids') near(band.power, 0);
+  expect(() => inspection.inspectSample(0.5)).toThrow(RangeError);
+  expect(() => inspection.inspectSample(16385)).toThrow(RangeError);
+});

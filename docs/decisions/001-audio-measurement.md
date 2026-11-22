@@ -43,6 +43,17 @@ then computes peak and sum of squares in one measurement pass per channel.
 It derives RMS from mean square and allocates only the returned result objects
 and channel array. The standalone measurement functions retain their contracts.
 
+Task 006 adds `measureAudioSteps`, a pure incremental counterpart. Its first
+`next()` performs full validation and captures metadata/channel references, then
+arithmetic advances in chunks of at most 262,144 samples. Accumulation remains
+one Number sum per channel in original sample order across chunks; only completion
+returns measurements. `measureAudio` drains the same steps synchronously and
+retains its existing API/errors. Keep PCM stable (no mutation or transfer) until
+completion and close an abandoned iterator with `return()`. Scheduling and
+cancellation stay outside DSP. Validation uses indexed sample access; no checks
+or error classes were removed. See [Task 006](../plans/2026-11-18-task-006-playback-shared-clock.md)
+for measured motivation and acceptance limits.
+
 ## Numerical evidence
 
 Synthetic signals have known expectations and require no external files, audio

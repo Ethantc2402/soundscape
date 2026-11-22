@@ -43,19 +43,36 @@ export function rms(input: PcmAudio): number[] {
 }
 
 export function measureAudio(input: PcmAudio): AudioMeasurement {
+  const steps = measureAudioSteps(input);
+  let step = steps.next();
+  while (!step.done) step = steps.next();
+  return step.value;
+}
+
+/** Stable borrowed PCM required until completion; yields between bounded arithmetic scans.
+ * No partial result is published. Task scheduling belongs to the caller, outside DSP.
+ */
+export function* measureAudioSteps(input: PcmAudio): Generator<void, AudioMeasurement> {
   validatePcm(input);
-  return {
-    sampleRate: input.sampleRate,
-    frameCount: input.channels[0].length,
-    channels: input.channels.map(channel => {
-      let peak = 0;
-      let sumSquares = 0;
-      for (const sample of channel) {
+  const sampleRate = input.sampleRate;
+  const pcmChannels = [...input.channels];
+  const frameCount = pcmChannels[0]!.length;
+  yield;
+  const channels: ChannelMeasurement[] = [];
+  for (const channel of pcmChannels) {
+    let peak = 0;
+    let sumSquares = 0;
+    for (let offset = 0; offset < channel.length; offset += 262144) {
+      const end = Math.min(offset + 262144, channel.length);
+      for (let index = offset; index < end; index++) {
+        const sample = channel[index]!;
         peak = Math.max(peak, Math.abs(sample));
         sumSquares += sample * sample;
       }
-      const meanSquareEnergy = sumSquares / channel.length;
-      return { samplePeak: peak, rms: Math.sqrt(meanSquareEnergy), meanSquareEnergy };
-    }),
-  };
+      yield;
+    }
+    const meanSquareEnergy = sumSquares / channel.length;
+    channels.push({ samplePeak: peak, rms: Math.sqrt(meanSquareEnergy), meanSquareEnergy });
+  }
+  return { sampleRate, frameCount, channels };
 }

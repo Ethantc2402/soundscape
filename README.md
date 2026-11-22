@@ -243,8 +243,10 @@ On narrow screens the named table regions can be focused and scrolled.
 Cancel/replacement discards stale results. Native decoding cannot be interrupted;
 one read/decode pipeline runs at a time, with only the latest pending selection.
 Decoded duration/channel guards apply after browser allocation, so the file cap
-is not a hard bound on decoder memory. Full-record copying/validation/measurement
-is synchronous, with phase updates yielding to the browser before scans.
+is not a hard bound on decoder memory. Decoded copying and full-record validation
+remain synchronous. Import measurement
+arithmetic is processed incrementally with task yields and generation checks;
+phase updates paint before preparation.
 
 New modules: `src/browser/import-audio.ts` owns decoding and fresh PCM copies;
 `src/import-session.ts` serializes requests; `src/song-inspection.ts` reuses one
@@ -297,3 +299,64 @@ authorize pushes, merges, or external comments. See the
 [research](docs/references/skill-research.md) and
 [implementation verification](docs/plans/2026-11-01-project-skills.md) for rationale
 and evaluation limits.
+
+## Local playback and shared inspection (Task 006)
+
+Imported songs now have Play/pause, whole-record loop, a per-channel waveform,
+and numeric/range/waveform seeking over the full decoded duration. Play requires
+a user gesture. Pause keeps position; seeking to exact end stops, and Play at
+end replays from zero. Short audio is playable even without a spectral window.
+Hidden tabs and audio interruptions pause; press Play explicitly to resume.
+
+Waveform and selected-window analysis follow one recording-relative snapshot.
+The table shows its full interval, center and refresh age, and updates at most
+15 Hz during ordinary playback. Tail windows clamp backwards and loop windows
+never wrap. Whole-record measurements stay static. Numeric text shows the requested
+seek; queued output can briefly retain its preceding playhead/analysis position.
+
+Timing is labeled **output estimate**, **uncompensated**, or **unconfirmed**.
+Physical output synchronization is unverified. Playback copies decoded PCM once
+into native audio storage; device-rate conversion/output clipping does not change
+the PCM measurements. Import preparation and first-Play copying provide task yields; some synchronous
+scans and native startup remain. See the plan for measured costs and pending acceptance.
+
+```sh
+SMOKE_ENTRY=playback npm run test:browser
+```
+
+This entry checks the actual offline source graph and real React UI with trusted
+pointer/keyboard events, without an autoplay bypass. It includes a bounded
+five-minute workload and writes viewport screenshots to the system temp directory.
+Headless browser success does not verify physical output, manual listening,
+native-memory reclamation or five-minute drift. See [decision 006](docs/decisions/006-playback-shared-clock.md)
+and the [Task 006 plan](docs/plans/2026-11-18-task-006-playback-shared-clock.md).
+
+### Task 006 foreground responsiveness probe
+
+Run `CHROMIUM_HEADLESS=0 SMOKE_ENTRY=responsiveness npm run test:browser` with
+`CHROMIUM` set to the installed Chrome executable. This opens headed Chrome,
+brings the probe to the foreground, and measures trusted pointer delay, timer
+and animation-frame gaps during five-minute import and first Play. Fixture
+creation is excluded. First Play uses the probe's transient user activation;
+the playback suite separately verifies a direct trusted Play click. Raw measured
+results and limitations are in [Task 006](docs/plans/2026-11-18-task-006-playback-shared-clock.md).
+
+Playback validation/copy yields in chunks into one unpublished native buffer.
+Pause cancels playback intent; subsequent Play shares/reuses preparation. Disposal
+stops further chunks. This trades longer preparation for interaction opportunities.
+Import validation now uses indexed scans; measurement arithmetic runs in bounded
+chunks with a soft 4 ms task budget. On the measured five-minute fixture this
+reduced foreground click delays and total import time. Copying, validation, analyzer
+setup and waveform generation still contain synchronous work. Native context
+startup remains a separate unresolved stall; physical synchronization, memory and
+manual/device acceptance remain open. See the plan for raw trials and tradeoffs.
+
+
+For native first-Play startup diagnostics, the same foreground probe additionally
+records constructor/resume timings and context state changes. `STARTUP_VARIANT`
+can select `rate`, `playback-latency`, or `silent-switch` experiments; these affect
+only the harness, never production playback. None resolved the measured native
+stall; the silent-switch experiment currently cancels Play and fails the probe.
+The current test machine reports no audio output devices. A run with a known
+built-in/wired output is the next acceptance step; see the Task 006 plan and
+[native startup evidence](docs/benchmarks/task-006-context-startup.json).

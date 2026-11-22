@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-18",
+  "environment": {
+    "os": "macOS 14.5 (23F79), Darwin arm64",
+    "device": "MacBook Air Mac15,12, Apple M3, 8 cores, 8 GB",
+    "chromeVersion": "157.0.8103.79",
+    "runtimeUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+    "nodeVersion": "v24.4.0",
+    "deviceContextRate": 48000,
+    "outputTimestampObserved": true,
+    "outputRoute": "unverified; system_profiler exposed no audio devices",
+    "refreshRate": "unverified; headless emulated viewport"
+  },
+  "method": "SMOKE_ENTRY=playback with installed Chrome, no autoplay bypass; zero-filled five-minute stereo PCM for isolated preparation and low-level timed tone bursts for real UI import/play/seek/replacement",
+  "runs": [
+    {
+      "label": "first complete passing run",
+      "waveformMs": 176.69999998807907,
+      "playbackValidationAllocationCopyMs": 171.19999998807907,
+      "inspectionSetupMs": 477,
+      "analysis100Ms": 26.5,
+      "fiveMinuteUiImportMs": 1281,
+      "firstPlayThroughTrustedDriverMs": 312.19999998807907,
+      "seekThroughDomObservationMs": 87.30000001192093,
+      "jsHeapBefore": 13627048,
+      "jsHeapDuring": 132000280,
+      "jsHeapPlaying": 355687982,
+      "jsHeapAfterReplacement": 356262332
+    },
+    {
+      "label": "self-review verification before additional browser lifecycle/duration checks; unit/typecheck/build commands ran concurrently during browser startup",
+      "waveformMs": 181,
+      "playbackValidationAllocationCopyMs": 166.09999999403954,
+      "inspectionSetupMs": 511.7000000178814,
+      "analysis100Ms": 50.79999998211861,
+      "fiveMinuteUiImportMs": 2500.5,
+      "firstPlayThroughTrustedDriverMs": 347.59999999403954,
+      "seekThroughDomObservationMs": 86.2000000178814,
+      "jsHeapBefore": 12220701,
+      "jsHeapDuring": 133253392,
+      "jsHeapPlaying": 355924770,
+      "jsHeapAfterReplacement": 356504589
+    },
+    {
+      "label": "instrumented StrictMode replay/unmount verification",
+      "waveformMs": 202.30000001192093,
+      "playbackValidationAllocationCopyMs": 185.80000001192093,
+      "inspectionSetupMs": 494.59999999403954,
+      "analysis100Ms": 32.69999998807907,
+      "fiveMinuteUiImportMs": 1317,
+      "firstPlayThroughTrustedDriverMs": 299.19999998807907,
+      "seekThroughDomObservationMs": 86.5,
+      "jsHeapBefore": 13440747,
+      "jsHeapDuring": 129510361,
+      "jsHeapPlaying": 356061365,
+      "jsHeapAfterReplacement": 356636583
+    },
+    {
+      "label": "final browser verification including resampled duration, native over-range copy and StrictMode replay/unmount",
+      "waveformMs": 200.80000001192093,
+      "playbackValidationAllocationCopyMs": 171.09999999403954,
+      "inspectionSetupMs": 501.2000000178814,
+      "analysis100Ms": 27.5,
+      "fiveMinuteUiImportMs": 1303.5,
+      "firstPlayThroughTrustedDriverMs": 293.69999998807907,
+      "seekThroughDomObservationMs": 86.10000002384186,
+      "jsHeapBefore": 14537141,
+      "jsHeapDuring": 134249232,
+      "jsHeapPlaying": 355596967,
+      "jsHeapAfterReplacement": 356170221
+    }
+  ],
+  "nominalStorage": {
+    "pcmBytes": 115200000,
+    "playbackBytes": 115200000,
+    "extremaBytes": 32768
+  },
+  "limits": [
+    "No physical audio/visual capture or loopback; 20-event <=50 ms gate and five-minute drift unverified",
+    "No registered calibration tolerance, refresh-rate verification or physical output route",
+    "JS heap is process-wide, without forced collection; native audio storage and reclamation unmeasured",
+    "No reliable dropped-frame measurement or peak-memory bound",
+    "First Play and seek observations include driver polling; these are not pure operation costs",
+    "Synchronous preparation/copy blocks main-thread work; responsiveness acceptance remains open",
+    "Shared host load and JIT/GC affect these observations; no speed or device guarantee"
+  ]
+}

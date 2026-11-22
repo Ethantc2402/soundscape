@@ -8,7 +8,13 @@ export type ImportState<T> =
 export function createImportSession<I, T>(
   run: (input: I, isCurrent: () => boolean, phase: (text: string) => void) => Promise<T | undefined>,
   publish: (state: ImportState<T>) => void,
+  release?: (value: T) => void,
 ) {
+  let owned: T | undefined;
+  function releaseOwned() {
+    if (owned !== undefined) release?.(owned);
+    owned = undefined;
+  }
   let generation = 0;
   let disposed = false;
   let running = false;
@@ -26,7 +32,10 @@ export function createImportSession<I, T>(
           const value = await run(job.input, isCurrent, phase => {
             if (isCurrent()) publish({ status: 'loading', phase });
           });
-          if (isCurrent() && value !== undefined) publish({ status: 'ready', value });
+          if (value !== undefined) {
+            if (isCurrent()) { owned = value; publish({ status: 'ready', value }); }
+            else release?.(value);
+          }
         } catch (error) {
           if (isCurrent()) publish({ status: 'error', message: error instanceof Error
             ? error.message : 'Could not import this recording. Try another WAV.' });
@@ -38,18 +47,21 @@ export function createImportSession<I, T>(
   return {
     select(input: I) {
       if (disposed) return;
+      releaseOwned();
       pending = { input, generation: ++generation };
       publish({ status: 'loading', phase: running ? 'Waiting for previous import…' : 'Reading WAV…' });
       void drain();
     },
     cancel() {
       if (disposed) return;
+      releaseOwned();
       generation++;
       pending = undefined;
       publish({ status: 'empty' });
     },
     dispose() {
       disposed = true;
+      releaseOwned();
       generation++;
       pending = undefined;
     },

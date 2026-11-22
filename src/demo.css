@@ -85,3 +85,6 @@ section {
 .song-table-scroll { max-width: 100%; overflow-x: auto; container-type: inline-size; }
 .song-table-scroll:focus-visible { outline: 3px solid #173b79; outline-offset: 3px; }
 input:focus-visible, button:focus-visible { outline: 3px solid #173b79; outline-offset: 3px; }
+.transport-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.waveform-overview svg { display: block; width: 100%; height: 5rem; background: #f1f5f9; cursor: crosshair; }
+.waveform-overview p { overflow-wrap: anywhere; }

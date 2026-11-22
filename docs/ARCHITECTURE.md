@@ -20,8 +20,13 @@ Connected repository: [Ethantc2402/soundscape](https://github.com/Ethantc2402/so
   cancellation/disposal invalidation and stale-result suppression.
 - `src/song-inspection.ts`: whole-record measurements once → reusable analyzer →
   compact per-channel bands for a selected 8,192-sample window.
-- `src/ImportedSong.tsx`: file selection, lifecycle, measurement tables, and
-  numeric/slider time inspection. This browser-bound view sits beside the demo.
+- `src/song-session.ts`: cohesive owner of stable PCM, inspection, waveform and lazy playback.
+- `src/playback-clock.ts`: pure recording/context-time segment arithmetic and timestamp selection.
+- `src/browser/song-playback.ts`: gesture-created context, one native copy, fresh sources,
+  command invalidation, output transitions and interruption/disposal policy.
+- `src/waveform-overview.ts`: independent per-channel compact bucket extrema.
+- `src/ImportedSong.tsx`, `src/SongTransport.tsx`, `src/WaveformOverview.tsx`: import,
+  measurement tables, transport, shared snapshot and bounded spectral refresh.
 
 DSP remains pure TypeScript, independent of React, DOM, Web Audio, and rendering. Storage is in-memory planar Float32 PCM with preserved mono/stereo order. Analyzer sessions retain private workspaces; callers must not mutate or transfer source PCM during a session.
 
@@ -40,3 +45,20 @@ No application credentials, authentication, database, backend, or external runti
 ## Constraints and proposed work
 
 Detailed mathematical and ownership contracts live in [README](../README.md) and decisions [001](decisions/001-audio-measurement.md), [002](decisions/002-spectral-analysis.md), and [003](decisions/003-spectral-engine-hardening.md). Task 003 adds synchronous iteration over fully fitting windows. Task 004 consumes that iterator once at demo initialization and retains only the display columns. See [004](decisions/004-time-indexed-analysis.md) for the timeline contract.
+
+Playback architecture, output-estimate limitations and resource policies are in
+[decision 006](decisions/006-playback-shared-clock.md). The import controller releases
+ready/obsolete sessions; no stale resume can restart disposed playback. Nominal
+playback storage duplicates PCM once, while spectra remain selected-window results.
+Physical synchronization and native-memory/performance gates remain unverified.
+
+First-Play validation/copy is cooperative at the browser boundary: one private
+AudioBuffer is prepared in bounded chunks with task yields, shared by pending
+Play commands. Pause/hidden suppress start, and disposal stops preparation at
+the next boundary. PCM remains stable/borrowed. Import measurement arithmetic uses a pure incremental
+iterator, driven by the session owner with task yields and generation checks under
+a soft 4 ms budget. Indexed validation retains all existing checks. Copying, full
+validation, analyzer setup and waveform generation remain synchronous phases; no
+validation is bypassed and no extra PCM copy is retained. Native AudioContext
+construction remains a separate unresolved stall. Foreground/device acceptance is
+still open (see Task 006's November 20 import-preparation measurements).
